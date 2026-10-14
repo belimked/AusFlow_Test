@@ -20,7 +20,8 @@
         </div>
       </el-col>
       <el-col :span="8"><div class="card"><MapView :markers="[{ lat: fa.lat, lng: fa.lng, label: fa.name, color: '#67c23a' }]" :height="220" /></div></el-col>
-      <el-col :span="6"><div class="card" style="text-align: center"><QrCode :value="fa.qr" :title="fa.name" subtitle="Facility unload QR" :size="150" /></div></el-col>
+      <el-col :span="6"><div class="card" style="text-align: center"><QrCode :value="fa.qr" :title="fa.name" subtitle="Facility unload QR" :size="150"
+        editable prefix="FA" :validate="(c) => state.facilities.some((x) => x.id !== fa.id && x.qr === c) ? 'Already used by another facility' : ''" @change="(qr) => upsert('facilities', fa, { qr })" /></div></el-col>
     </el-row>
     <div class="card">
       <h3 style="margin: 0 0 10px">Unloads ({{ unloads.length }})</h3>

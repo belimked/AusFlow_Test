@@ -2,7 +2,7 @@
   <div v-if="tags.length" class="tag-ids" :class="{ inline }">
     <el-tag v-for="t in tags" :key="t" :size="inline ? 'default' : 'small'" effect="plain" class="mono">{{ t }}</el-tag>
   </div>
-  <span v-else class="muted">—</span>
+  <span v-else class="muted mono" title="No QR – system ID">{{ device.ref }}</span>
 </template>
 <script setup>
 import { computed } from 'vue'

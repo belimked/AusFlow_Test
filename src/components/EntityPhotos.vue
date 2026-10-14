@@ -89,7 +89,7 @@ async function upload(e) {
 }
 
 async function remove(p) {
-  await ElMessageBox.confirm(`Delete photo "${p.name}"?`, 'Delete photo', { type: 'warning' })
+  try { await ElMessageBox.confirm(`Delete photo "${p.name}"?`, 'Delete photo', { type: 'warning' }) } catch { return }
   await api('/photos/' + p.id, null, 'DELETE')
   photos.value = photos.value.filter((x) => x.id !== p.id)
   emit('removed', p.kind, p.name)

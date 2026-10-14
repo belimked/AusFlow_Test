@@ -189,6 +189,36 @@ export const vehicleLoads = computed(() => {
   return m
 })
 
+// Build load cycles once per state change, in event order. A clear ends the current cycle.
+export const vehicleCycles = computed(() => {
+  const events = [
+    ...state.pickups.filter((p) => p.status === 'done' && p.endAt).map((p) => ({ at: p.endAt, id: p.id, vehicleId: p.vehicleId, kind: 'pickup', ref: p })),
+    ...state.transfers.flatMap((t) => [
+      { at: t.at, id: t.id, vehicleId: t.fromVehicleId, kind: 'transfer', ref: t },
+      { at: t.at, id: t.id, vehicleId: t.toVehicleId, kind: 'transferIn', ref: t }
+    ]),
+    ...state.unloads.map((u) => ({ at: u.at, id: u.id, vehicleId: u.vehicleId, kind: 'unload', ref: u }))
+  ].sort((a, b) => a.at.localeCompare(b.at) || ({ pickup: 0, transferIn: 1, transfer: 2, unload: 3 }[a.kind] - { pickup: 0, transferIn: 1, transfer: 2, unload: 3 }[b.kind]) || a.id.localeCompare(b.id))
+  const active = new Map(), cycles = []
+  for (const e of events) {
+    let c = active.get(e.vehicleId)
+    if (e.kind === 'pickup' || e.kind === 'transferIn') {
+      if (!c) {
+        c = { vehicleId: e.vehicleId, startAt: e.at, firstInflowId: e.id, endAt: null, endKind: null, endRef: null, inflow: 0, pickups: [], transfersIn: [] }
+        active.set(e.vehicleId, c)
+        cycles.push(c)
+      }
+      c.inflow += Number(e.ref.volume) || 0
+      if (e.kind === 'pickup') c.pickups.push(e.ref)
+      else c.transfersIn.push(e.ref)
+    } else {
+      if (c) { c.endAt = e.at; c.endKind = e.kind; c.endRef = e.ref }
+      active.delete(e.vehicleId)
+    }
+  }
+  return cycles
+})
+
 // ---------- trace (W22) ----------
 // Prototype assumption: a transfer moves the whole load of the source vehicle, and an unload empties the vehicle.
 const ts = (s) => new Date(s).getTime()

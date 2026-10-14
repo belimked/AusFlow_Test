@@ -51,6 +51,7 @@
             <el-table-column label="Pump-out ID" width="120"><template #default="{ row }"><span class="link" @click="router.push('/pickups/' + row.pickup.id)">{{ row.pickup.id }}</span></template></el-table-column>
             <el-table-column label="Device" width="100"><template #default="{ row }"><span class="link" @click="router.push('/devices/' + row.pickup.deviceId)">{{ row.pickup.deviceId }}</span></template></el-table-column>
             <el-table-column label="Location" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ nameOf('locations', row.pickup.locationId) }}</template></el-table-column>
+            <el-table-column label="Waste type" prop="pickup.waste" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ row.pickup.waste || '—' }}</template></el-table-column>
             <el-table-column label="Volume" width="110" align="right"><template #default="{ row }">{{ fmtL(row.pickup.volume) }}</template></el-table-column>
             <el-table-column label="Pump-out time" width="160"><template #default="{ row }">{{ fmtTime(row.pickup.endAt) }}</template></el-table-column>
             <el-table-column label="Vehicles" min-width="160"><template #default="{ row }">{{ row.path.map(plateOf).join(' → ') }}</template></el-table-column>

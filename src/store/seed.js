@@ -105,6 +105,7 @@ export function buildSeed() {
     const cDevices = devices.filter((d) => d.companyId === c.id && d.status === 'Active')
     if (!cDevices.length) continue
     const load = new Map(cVehicles.map((v) => [v.id, 0]))
+    const loadWaste = new Map()
     let ongoingMade = false
 
     for (let dd = HISTORY_DAYS - 1; dd >= 0; dd--) {
@@ -125,7 +126,7 @@ export function buildSeed() {
           const dev = candidates[Math.floor(rnd() * Math.min(4, candidates.length))]
           const overCap = rnd() < 0.05
           const volume = Math.max(50, Math.round((dev.capacity * (overCap ? 1.1 : between(0.55, 0.95))) / 10) * 10)
-          if (load.get(v.id) + volume > v.tank) break
+          if (load.get(v.id) + volume > v.tank || (loadWaste.has(v.id) && loadWaste.get(v.id) !== (normName(dev.waste) || 'Grease Trap Waste'))) break
           const start = t, end = start + between(15, 45) * MIN
           if (end > now) {
             if (!ongoingMade && start < now) {
@@ -133,7 +134,7 @@ export function buildSeed() {
               const [sl, sg] = jitter(dev.lat, dev.lng)
               pickups.push({
                 id: '', deviceId: dev.id, locationId: dev.locationId, companyId: c.id, driverId: driver.id, vehicleId: v.id,
-                volume: null, startAt: iso(start), endAt: null, startLat: sl, startLng: sg, endLat: null, endLng: null,
+                volume: null, waste: normName(dev.waste) || 'Grease Trap Waste', startAt: iso(start), endAt: null, startLat: sl, startLng: sg, endLat: null, endLng: null,
                 distance: distanceM(dev.lat, dev.lng, sl, sg), photos: 0, flags: [], note: '', status: 'ongoing'
               })
             }
@@ -149,20 +150,22 @@ export function buildSeed() {
           if (volume > dev.capacity) flags.push('capacity')
           pickups.push({
             id: '', deviceId: dev.id, locationId: dev.locationId, companyId: c.id, driverId: driver.id, vehicleId: v.id,
-            volume, startAt: iso(start), endAt: iso(end), startLat: sl, startLng: sg, endLat: el, endLng: eg, distance,
+            volume, waste: normName(dev.waste) || 'Grease Trap Waste', startAt: iso(start), endAt: iso(end), startLat: sl, startLng: sg, endLat: el, endLng: eg, distance,
             photos: rnd() < 0.6 ? 1 + Math.floor(rnd() * 2) : 0, flags,
             note: flags.includes('location') ? 'Trap is in the rear lane; truck parked at the corner' : '', status: 'done'
           })
           load.set(v.id, load.get(v.id) + volume)
+          loadWaste.set(v.id, normName(dev.waste) || 'Grease Trap Waste')
           dev.lastService = iso(end)
           t = end + between(20, 60) * MIN
         }
         const endT = t + between(20, 50) * MIN
         if (endT > now || !load.get(v.id)) continue
         const [lat, lng] = [-27.47 + between(-0.08, 0.08), 153.03 + between(-0.1, 0.1)]
-        if (v.type === 'small' && large && rnd() < 0.4) {
+        if (v.type === 'small' && large && (!loadWaste.has(large.id) || loadWaste.get(large.id) === loadWaste.get(v.id)) && rnd() < 0.4) {
           transfers.push({ id: '', companyId: c.id, driverId: driver.id, fromVehicleId: v.id, toVehicleId: large.id, volume: load.get(v.id), at: iso(endT), lat, lng })
           load.set(large.id, load.get(large.id) + load.get(v.id))
+          loadWaste.set(large.id, loadWaste.get(v.id))
           largeArrivals.push(endT)
         } else {
           const f = pick(activeFacilities)
@@ -178,6 +181,7 @@ export function buildSeed() {
             else { unloads.pop(); load.set(v.id, last.volume) }
           }
         }
+        if (!load.get(v.id)) loadWaste.delete(v.id)
       }
     }
   }
@@ -191,16 +195,68 @@ export function buildSeed() {
     if (v0 && d0) {
       pickups.push({
         id: '', deviceId: dev0.id, locationId: dev0.locationId, companyId: c0.id, driverId: d0.id, vehicleId: v0.id,
-        volume: null, startAt: iso(now - 9.5 * HOUR), endAt: null, startLat: dev0.lat, startLng: dev0.lng, endLat: null, endLng: null,
+        volume: null, waste: normName(dev0.waste) || 'Grease Trap Waste', startAt: iso(now - 9.5 * HOUR), endAt: null, startLat: dev0.lat, startLng: dev0.lng, endLat: null, endLng: null,
         distance: 6, photos: 0, flags: [], note: '', status: 'ongoing'
       })
     }
+  }
+
+  // Dedicated trucks keep the suspicious examples independent of normal routes.
+  const co = companies[0], driver = drivers.find((d) => d.companyId === co.id && d.status === 'active')
+  const devs = devices.filter((d) => d.companyId === co.id && d.status === 'Active' && d.capacity >= 1000 && d.lat != null)
+  const facility = activeFacilities[0]
+  const truck = (tank) => {
+    const v = { id: id('VE'), companyId: co.id, plate: `${Math.floor(between(100, 999))} ${code(3)}`, type: 'small', tank, qr: 'VH' + code(10), status: 'active' }
+    vehicles.push(v)
+    return v
+  }
+  const job = (v, d, volume, hoursAgo) => {
+    const end = now - hoursAgo * HOUR
+    pickups.push({ id: '', deviceId: d.id, locationId: d.locationId, companyId: co.id, driverId: driver.id, vehicleId: v.id,
+      volume, waste: normName(d.waste) || 'Grease Trap Waste', startAt: iso(end - 30 * MIN), endAt: iso(end),
+      startLat: d.lat, startLng: d.lng, endLat: d.lat, endLng: d.lng, distance: 0, photos: 0, flags: [], note: '', status: 'done' })
+  }
+  const discharge = (v, volume, hoursAgo, waste = '') => unloads.push({ id: '', companyId: co.id, driverId: driver.id,
+    vehicleId: v.id, facilityId: facility.id, volume, waste, at: iso(now - hoursAgo * HOUR), lat: facility.lat, lng: facility.lng })
+  if (devs.length >= 2) {
+    const a = devs.find((d) => normName(d.waste).toLowerCase() === 'grease trap waste') || devs[0]
+    const b = devs.find((d) => d.id !== a.id)
+    const overloaded = truck(2000)
+    job(overloaded, a, 1400, 5); job(overloaded, b, 1300, 4)
+    const overTank = truck(2000)
+    job(overTank, a, 2600, 3.5); discharge(overTank, 2600, 3)
+    const delayed = truck(4000)
+    job(delayed, a, 900, 30)
+    const mismatched = truck(4000)
+    job(mismatched, a, 800, 2.5); discharge(mismatched, 800, 2, 'Oily Water')
+    const daily = truck(4000), d = devs.find((x) => x.capacity <= 2500) || a
+    job(daily, d, Math.round(d.capacity * 0.7), 1.5)
+    job(daily, d, Math.round(d.capacity * 0.7), 1)
   }
 
   pickups.sort((a, b) => a.startAt.localeCompare(b.startAt)).forEach((p) => (p.id = id('PK')))
   transfers.sort((a, b) => a.at.localeCompare(b.at)).forEach((x) => (x.id = id('TR')))
   unloads.sort((a, b) => a.at.localeCompare(b.at)).forEach((x) => (x.id = id('UL')))
   pickups.reverse(); transfers.reverse(); unloads.reverse()
+  // Whole-load provenance, calculated before assigning the seed to reactive state.
+  const sources = (vehicleId, end, depth = 0) => {
+    if (depth > 10) return []
+    const previous = [
+      ...unloads.filter((u) => u.vehicleId === vehicleId && u.at < end).map((u) => u.at),
+      ...transfers.filter((t) => t.fromVehicleId === vehicleId && t.at < end).map((t) => t.at)
+    ].sort().at(-1) || ''
+    return [
+      ...pickups.filter((p) => p.status === 'done' && p.vehicleId === vehicleId && p.endAt > previous && p.endAt <= end),
+      ...transfers.filter((t) => t.toVehicleId === vehicleId && t.at > previous && t.at <= end)
+        .flatMap((t) => sources(t.fromVehicleId, t.at, depth + 1))
+    ]
+  }
+  for (const u of unloads) {
+    if (u.waste) continue
+    const counts = new Map()
+    for (const p of sources(u.vehicleId, u.at)) counts.set(p.waste, (counts.get(p.waste) || 0) + 1)
+    u.waste = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || ''
+  }
 
   const changeLogs = []
   const SAMPLE_CHANGES = [

@@ -1,5 +1,16 @@
 import Papa from 'papaparse'
 
+export function exportCsv(name, rows) {
+  const csv = '\uFEFF' + Papa.unparse(rows)
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  const date = new Date()
+  link.download = `${name}-${[date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')}.csv`
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 }
 const TZ = { AEST: 10, AEDT: 11, ACST: 9.5, ACDT: 10.5, AWST: 8, NZST: 12, NZDT: 13, GMT: 0, UTC: 0 }
 
@@ -41,8 +52,9 @@ export function rowToDevice(r) {
   const freq = num(r['Service Frequency'])
   if (Number.isNaN(freq)) errors.push(`Service frequency is not a number: "${r['Service Frequency']}"`)
   let lat = num(r['Latitude']), lng = num(r['Longitude'])
-  if (Number.isNaN(lat) || Number.isNaN(lng) || (lat != null && (lat < -90 || lat > 90)) || (lng != null && (lng < -180 || lng > 180))) {
-    errors.push('Invalid coordinates')
+  if ((lat == null) !== (lng == null) || Number.isNaN(lat) || Number.isNaN(lng) || (lat != null && (lat < -90 || lat > 90)) || (lng != null && (lng < -180 || lng > 180))) {
+    errors.push('Invalid coordinates: latitude and longitude must both be valid')
+    lat = lng = null
   }
   if (!(r['Location Names'] || '').trim() && !(r['Address Line 1'] || '').trim()) errors.push('Missing location name and address')
   const device = {

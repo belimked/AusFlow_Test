@@ -12,6 +12,8 @@
         <el-input v-else-if="f.type === 'qr'" v-model="form[f.key]">
           <template #append><el-button @click="form[f.key] = (f.prefix || '') + code(10)">Generate</el-button></template>
         </el-input>
+        <AddressAutocomplete v-else-if="f.type === 'address'" v-model="form[f.key]" :near="form"
+          placeholder="Start typing a street address" @select="(s) => selectAddress(f.key, s)" />
         <MapPicker v-else-if="f.type === 'map'" v-model:lat="form.lat" v-model:lng="form.lng" style="width: 100%" />
         <el-input v-else v-model="form[f.key]" :placeholder="f.placeholder" />
       </el-form-item>
@@ -26,6 +28,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
+import AddressAutocomplete from './AddressAutocomplete.vue'
 
 // fields: [{ key, label, type?, options?, required?, validator? }]
 const props = defineProps({ title: String, fields: Array, record: Object, defaults: Object })
@@ -45,6 +48,11 @@ watch(visible, (v) => {
   for (const k of Object.keys(form)) delete form[k]
   Object.assign(form, props.defaults || {}, props.record ? JSON.parse(JSON.stringify(props.record)) : {})
 })
+
+function selectAddress(key, item) {
+  form[key] = item.label
+  if (hasMap.value) { form.lat = item.lat; form.lng = item.lng }
+}
 
 async function submit() {
   await formRef.value.validate()

@@ -10,19 +10,20 @@
           <el-option v-for="(l, v) in ENTITY_STATUS" :key="v" :label="l" :value="v" />
         </el-select>
         <span class="spacer" />
+        <el-button @click="download">Export CSV</el-button>
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add Location</el-button>
       </div>
-      <el-table :data="rows" stripe>
-        <el-table-column label="Location name" min-width="220" show-overflow-tooltip>
+      <el-table @sort-change="onSort" :data="rows" stripe>
+        <el-table-column label="Location name" prop="name" sortable="custom" min-width="220" show-overflow-tooltip>
           <template #default="{ row }"><span class="link" @click="router.push('/locations/' + row.id)">{{ row.name }}</span></template>
         </el-table-column>
-        <el-table-column label="Address" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ row.address1 }}</template></el-table-column>
-        <el-table-column prop="suburb" label="Suburb" width="150" />
-        <el-table-column prop="agreementNo" label="Agreement No." width="140" />
-        <el-table-column label="Devices" width="90" align="right"><template #default="{ row }">{{ stats.get(row.id)?.n || 0 }}</template></el-table-column>
-        <el-table-column label="Overdue" width="90" align="right"><template #default="{ row }"><span :class="{ red: stats.get(row.id)?.od }">{{ stats.get(row.id)?.od || 0 }}</span></template></el-table-column>
+        <el-table-column label="Address" prop="address1" sortable="custom" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ row.address1 }}</template></el-table-column>
+        <el-table-column label="Suburb" prop="suburb" sortable="custom" width="150" />
+        <el-table-column label="Agreement No." prop="agreementNo" sortable="custom" width="140" />
+        <el-table-column label="Devices" prop="deviceCount" sortable="custom" width="90" align="right"><template #default="{ row }">{{ stats.get(row.id)?.n || 0 }}</template></el-table-column>
+        <el-table-column label="Overdue" prop="overdueCount" sortable="custom" width="90" align="right"><template #default="{ row }"><span :class="{ red: stats.get(row.id)?.od }">{{ stats.get(row.id)?.od || 0 }}</span></template></el-table-column>
         <el-table-column label="Coordinates" width="115"><template #default="{ row }"><el-icon v-if="row.lat != null" color="#67c23a"><CircleCheck /></el-icon><span v-else class="muted">None</span></template></el-table-column>
-        <el-table-column label="Status" width="100"><template #default="{ row }"><el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
+        <el-table-column label="Status" prop="status" sortable="custom" width="100"><template #default="{ row }"><el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
         <el-table-column label="Actions" width="190" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="edit(row)">Edit</el-button>
@@ -42,6 +43,7 @@ import { ElMessageBox } from 'element-plus'
 import Pager from '../components/Pager.vue'
 import LocationDialog from '../components/LocationDialog.vue'
 import { usePaged } from '../composables/paged'
+import { exportCsv } from '../store/csv'
 import { state, save, isOverdue, ENTITY_STATUS } from '../store/db'
 
 const router = useRouter()
@@ -62,12 +64,19 @@ const filtered = computed(() => {
     (!k || [l.name, l.address1, l.agreementNo].some((x) => (x || '').toLowerCase().includes(k))) &&
     (!suburb.value || l.suburb === suburb.value) && (!status.value || l.status === status.value))
 })
-const { page, pageSize, rows, total } = usePaged(filtered)
+const { page, pageSize, rows, sorted, onSort, total } = usePaged(filtered, 20, {
+  deviceCount: (l) => stats.value.get(l.id)?.n || 0, overdueCount: (l) => stats.value.get(l.id)?.od || 0
+})
+function download() {
+  exportCsv('locations', sorted.value.map((l) => ({ 'Location name': l.name, Address: l.address1, Suburb: l.suburb,
+    'Agreement No.': l.agreementNo, Devices: stats.value.get(l.id)?.n || 0, Overdue: stats.value.get(l.id)?.od || 0,
+    Coordinates: l.lat != null && l.lng != null ? 'Set' : 'None', Status: ENTITY_STATUS[l.status] })))
+}
 
 const dlg = ref(false), current = ref(null)
 function edit(row) { current.value = row; dlg.value = true }
 async function toggle(row) {
-  if (row.status === 'active') await ElMessageBox.confirm(`Deactivate location “${row.name}”? Existing devices and records will not be affected.`, 'Deactivate Location', { type: 'warning' })
+  if (row.status === 'active') { try { await ElMessageBox.confirm(`Deactivate location “${row.name}”? Existing devices and records will not be affected.`, 'Deactivate Location', { type: 'warning' }) } catch { return } }
   row.status = row.status === 'active' ? 'inactive' : 'active'
   save()
 }

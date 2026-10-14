@@ -71,7 +71,7 @@ const active = computed(() => {
 })
 
 async function reset() {
-  await ElMessageBox.confirm('This will clear all changes, imports and new records and restore the original demo data.', 'Reset demo data', { type: 'warning' })
+  try { await ElMessageBox.confirm('This will clear all changes, imports and new records and restore the original demo data.', 'Reset demo data', { type: 'warning' }) } catch { return }
   await resetDemo()
   ElMessage.success('Demo data reset')
   router.push('/dashboard')

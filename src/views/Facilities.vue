@@ -8,11 +8,11 @@
       </div>
       <el-row :gutter="12">
         <el-col :span="15">
-          <el-table :data="filtered" stripe>
-            <el-table-column label="Name" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/facilities/' + row.id)">{{ row.name }}</span></template></el-table-column>
-            <el-table-column prop="address" label="Address" min-width="220" show-overflow-tooltip />
-            <el-table-column label="Unloaded (14 days)" width="170" align="right"><template #default="{ row }">{{ fmtL(volumes.get(row.id) || 0) }}</template></el-table-column>
-            <el-table-column label="Status" width="90"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
+          <el-table @sort-change="onSort" :data="sortedFacilities" stripe>
+            <el-table-column label="Name" prop="name" sortable="custom" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/facilities/' + row.id)">{{ row.name }}</span></template></el-table-column>
+            <el-table-column label="Address" prop="address" sortable="custom" min-width="220" show-overflow-tooltip />
+            <el-table-column label="Unloaded (14 days)" prop="volume" sortable="custom" width="170" align="right"><template #default="{ row }">{{ fmtL(volumes.get(row.id) || 0) }}</template></el-table-column>
+            <el-table-column label="Status" prop="status" sortable="custom" width="90"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
             <el-table-column label="Actions" width="175"><template #default="{ row }">
               <el-button link type="primary" @click="edit(row)">Edit</el-button>
               <el-button link :type="row.status === 'active' ? 'danger' : 'success'" @click="toggle(row)">{{ row.status === 'active' ? 'Deactivate' : 'Activate' }}</el-button>
@@ -29,6 +29,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { usePaged } from '../composables/paged'
 import MapView from '../components/MapView.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import { state, save, fmtL, ENTITY_STATUS } from '../store/db'
@@ -40,6 +41,7 @@ const filtered = computed(() => {
   const k = q.value.trim().toLowerCase()
   return state.facilities.filter((f) => !k || [f.name, f.address].some((x) => (x || '').toLowerCase().includes(k)))
 })
+const { sorted: sortedFacilities, onSort } = usePaged(filtered, 1000000, { volume: (f) => volumes.value.get(f.id) || 0 })
 const volumes = computed(() => {
   const m = new Map()
   for (const u of state.unloads) m.set(u.facilityId, (m.get(u.facilityId) || 0) + u.volume)

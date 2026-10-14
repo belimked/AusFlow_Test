@@ -24,7 +24,8 @@
           </div>
         </div>
       </el-col>
-      <el-col :span="8"><div class="card" style="text-align: center"><QrCode :value="v.qr" :title="'Vehicle ' + v.plate" :subtitle="nameOf('companies', v.companyId)" /></div></el-col>
+      <el-col :span="8"><div class="card" style="text-align: center"><QrCode :value="v.qr" :title="'Vehicle ' + v.plate" :subtitle="nameOf('companies', v.companyId)"
+        editable prefix="VH" :validate="(c) => state.vehicles.some((x) => x.id !== v.id && x.qr === c) ? 'Already used by another vehicle' : ''" @change="(qr) => upsert('vehicles', v, { qr })" /></div></el-col>
     </el-row>
     <div class="card">
       <el-tabs v-model="tab">

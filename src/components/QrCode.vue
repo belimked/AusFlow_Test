@@ -3,17 +3,46 @@
     <template v-if="value">
       <img :src="url" :width="size" :height="size" alt="QR" />
       <div class="mono">{{ value }}</div>
-      <el-button class="no-print" size="small" :icon="'Printer'" @click="print">Print QR code</el-button>
+      <div class="no-print">
+        <el-button size="small" :icon="'Printer'" @click="print">Print QR code</el-button>
+        <el-button v-if="editable" size="small" :icon="'Edit'" @click="edit">Edit QR</el-button>
+      </div>
     </template>
-    <div v-else class="muted">No QR code set</div>
+    <template v-else>
+      <div class="muted">No QR code set<span v-if="systemRef" class="mono" title="No QR – system ID"> · {{ systemRef }}</span></div>
+      <el-button v-if="editable" class="no-print" size="small" type="primary" :icon="'Plus'" @click="edit">Set QR</el-button>
+    </template>
   </div>
 </template>
 <script setup>
 import { ref, watchEffect } from 'vue'
 import QRCode from 'qrcode'
+import { ElMessageBox } from 'element-plus'
 import { BRAND } from '../brand'
 
-const props = defineProps({ value: String, title: String, subtitle: String, size: { type: Number, default: 160 } })
+const props = defineProps({
+  value: String, systemRef: String, title: String, subtitle: String, size: { type: Number, default: 160 },
+  editable: Boolean, prefix: { type: String, default: '' }, validate: Function
+})
+const emit = defineEmits(['change'])
+const genCode = () => props.prefix + Array.from({ length: 10 }, () => 'ABCDEFGHJKLMNPRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]).join('')
+
+async function edit() {
+  let input
+  try {
+    ({ value: input } = await ElMessageBox.prompt('Enter the code printed on the QR label.', props.value ? 'Edit QR code' : 'Set QR code', {
+      inputValue: props.value || genCode(),
+      inputValidator: (v) => {
+        const s = (v || '').trim()
+        if (!s) return 'QR code is required'
+        if (/\s/.test(s)) return 'QR code cannot contain spaces'
+        return s === props.value || !props.validate ? true : props.validate(s) || true
+      }
+    }))
+  } catch { return }
+  const s = input.trim()
+  if (s !== props.value) emit('change', s)
+}
 const url = ref('')
 watchEffect(async () => {
   url.value = props.value ? await QRCode.toDataURL(props.value, { width: 480, margin: 1 }) : ''

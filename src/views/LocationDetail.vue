@@ -6,7 +6,7 @@
       <el-tag :type="loc.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[loc.status] }}</el-tag>
       <span style="flex: 1" />
       <el-button :icon="'Edit'" @click="dlg = true">Edit</el-button>
-      <el-button type="primary" :icon="'Plus'" @click="router.push({ path: '/devices', query: { newAt: loc.id } })">Add device here</el-button>
+      <el-button type="primary" :icon="'Plus'" @click="deviceDlg = true">Add device here</el-button>
     </h2>
     <el-row :gutter="12">
       <el-col :span="12">
@@ -29,6 +29,7 @@
       <DeviceTable :rows="devices" hide-location />
     </div>
     <LocationDialog v-model="dlg" :record="loc" />
+    <DeviceDialog v-model="deviceDlg" :defaults="{ locationId: loc.id }" />
   </div>
   <el-empty v-else description="Location not found" />
 </template>
@@ -37,6 +38,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MapView from '../components/MapView.vue'
 import LocationDialog from '../components/LocationDialog.vue'
+import DeviceDialog from '../components/DeviceDialog.vue'
 import DeviceTable from '../components/DeviceTable.vue'
 import { state, idx, ENTITY_STATUS } from '../store/db'
 
@@ -47,5 +49,5 @@ const markers = computed(() => [
   ...(loc.value?.lat != null ? [{ lat: loc.value.lat, lng: loc.value.lng, label: loc.value.name, color: '#e6a23c' }] : []),
   ...devices.value.filter((d) => d.lat != null).map((d) => ({ lat: d.lat, lng: d.lng, label: d.ref + ' ' + (d.aka || ''), color: '#409eff' }))
 ])
-const dlg = ref(false)
+const dlg = ref(false), deviceDlg = ref(false)
 </script>

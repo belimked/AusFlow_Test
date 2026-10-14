@@ -39,12 +39,13 @@
                 </InlineField></el-descriptions-item>
                 <el-descriptions-item label="Location description" :span="2"><InlineField :device="dev" field="locationDesc">{{ dev.locationDesc || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Comments" :span="2"><InlineField :device="dev" field="comments">{{ dev.comments || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Coordinates" :span="2"><InlineField :device="dev" field="coords">{{ dev.lat != null ? `${dev.lat.toFixed(6)}, ${dev.lng.toFixed(6)}` : 'Not set' }}</InlineField></el-descriptions-item>
+                <el-descriptions-item label="Coordinates" :span="2"><InlineField :device="dev" field="coords">{{ typeof dev.lat === 'number' && typeof dev.lng === 'number' ? `${dev.lat.toFixed(6)}, ${dev.lng.toFixed(6)}` : 'Not set' }}</InlineField></el-descriptions-item>
               </el-descriptions>
               <MapView :markers="markers" :height="220" style="margin-top: 12px" />
             </el-col>
             <el-col :span="9">
-              <div style="text-align: center"><QrCode :value="dev.qr" :title="dev.ref + ' ' + (dev.aka || '')" :subtitle="loc?.name" :size="200" /></div>
+              <div style="text-align: center"><QrCode :value="tagsOf(dev)[0] || ''" :system-ref="dev.ref" :title="dev.ref + ' ' + (dev.aka || '')" :subtitle="loc?.name" :size="200"
+                editable :validate="qrTaken" @change="setQr" /></div>
               <el-divider />
               <EntityPhotos type="device" :id="dev.id" :kinds="DEVICE_PHOTO_KINDS"
                 @added="(k, name) => photoLog(k, '', 'Added ' + name)" @removed="(k, name) => photoLog(k, name, 'Removed')" />
@@ -116,7 +117,7 @@ import ChangeLogTable from '../components/ChangeLogTable.vue'
 import InlineField from '../components/InlineField.vue'
 import TagIds from '../components/TagIds.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
-import { state, idx, nameOf, updateDevice, logChange, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
+import { tagsOf, state, idx, nameOf, updateDevice, logChange, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')
@@ -158,6 +159,15 @@ const nearbyMarkers = computed(() => [
 function setStatus(s) {
   updateDevice(dev.value.id, { status: s }, 'Web')
   ElMessage.success('Status updated and recorded in the Change Log')
+}
+const qrTaken = (code) => {
+  const other = state.devices.find((d) => d.id !== dev.value.id && tagsOf(d).some((t) => t.toLowerCase() === code.toLowerCase()))
+  return other ? `Already used by device ${other.ref}` : ''
+}
+function setQr(code) {
+  const [, ...rest] = tagsOf(dev.value)
+  updateDevice(dev.value.id, { tags: [code, ...rest].join(' '), qr: code }, 'Web')
+  ElMessage.success('QR code updated and recorded in the Change Log')
 }
 </script>
 <style scoped>

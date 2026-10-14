@@ -9,7 +9,7 @@ export const companyFields = (rec) => [
   { key: 'abn', label: 'ABN', required: true, placeholder: '11 digits', validator: (v) => (v && v.replace(/\s/g, '').length !== 11 ? 'ABN must be 11 digits' : '') },
   { key: 'contact', label: 'Contact' },
   { key: 'phone', label: 'Phone' },
-  { key: 'address', label: 'Address' },
+  { key: 'address', label: 'Address', type: 'address' },
   { key: 'status', label: 'Status', type: 'radio', options: opts(ENTITY_STATUS) }
 ]
 export const driverFields = (rec) => [
@@ -29,7 +29,7 @@ export const vehicleFields = (rec) => [
 ]
 export const facilityFields = (rec) => [
   { key: 'name', label: 'Facility name', required: true, validator: unique('facilities', 'name', rec) },
-  { key: 'address', label: 'Address', required: true },
+  { key: 'address', label: 'Address', type: 'address', required: true },
   { key: 'qr', label: 'Facility QR code', type: 'qr', prefix: 'FA', required: true },
   { key: 'status', label: 'Status', type: 'radio', options: opts(ENTITY_STATUS) },
   { key: 'coords', label: 'Coordinates', type: 'map' }

@@ -11,14 +11,14 @@
         <span class="spacer" />
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add driver</el-button>
       </div>
-      <el-table :data="rows" stripe>
-        <el-table-column prop="name" label="Name" width="160" />
-        <el-table-column label="Hauler" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.companyId)">{{ nameOf('companies', row.companyId) }}</span></template></el-table-column>
-        <el-table-column prop="phone" label="Phone" width="140" />
-        <el-table-column prop="account" label="Username" width="140" />
-        <el-table-column label="Registered" width="120"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="Jobs (14 days)" width="145" align="right"><template #default="{ row }">{{ jobs.get(row.id) || 0 }}</template></el-table-column>
-        <el-table-column label="Status" width="100"><template #default="{ row }"><el-tag size="small" :type="TAG[row.status]">{{ DRIVER_STATUS[row.status] }}</el-tag></template></el-table-column>
+      <el-table @sort-change="onSort" :data="rows" stripe>
+        <el-table-column label="Name" prop="name" sortable="custom" width="160" />
+        <el-table-column label="Hauler" prop="companyId" sortable="custom" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.companyId)">{{ nameOf('companies', row.companyId) }}</span></template></el-table-column>
+        <el-table-column label="Phone" prop="phone" sortable="custom" width="140" />
+        <el-table-column label="Username" prop="account" sortable="custom" width="140" />
+        <el-table-column label="Registered" prop="createdAt" sortable="custom" width="120"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="Jobs (14 days)" prop="jobCount" sortable="custom" width="145" align="right"><template #default="{ row }">{{ jobs.get(row.id) || 0 }}</template></el-table-column>
+        <el-table-column label="Status" prop="status" sortable="custom" width="100"><template #default="{ row }"><el-tag size="small" :type="TAG[row.status]">{{ DRIVER_STATUS[row.status] }}</el-tag></template></el-table-column>
         <el-table-column label="Photos" width="90" align="center"><template #default="{ row }">
           <el-button link type="primary" :icon="'Picture'" @click="openPhotos(row)">{{ photoCounts[row.id] || 0 }}</el-button>
         </template></el-table-column>
@@ -67,7 +67,7 @@ const filtered = computed(() => {
   return state.drivers.filter((d) => (!f.company || d.companyId === f.company) && (!f.status || d.status === f.status) &&
     (!k || [d.name, d.phone, d.account].some((x) => (x || '').toLowerCase().includes(k))))
 })
-const { page, pageSize, rows, total } = usePaged(filtered)
+const { page, pageSize, rows, sorted, onSort, total } = usePaged(filtered, 20, { jobCount: (d) => jobs.value.get(d.id) || 0, companyId: (d) => nameOf('companies', d.companyId) })
 const dlg = ref(false), current = ref(null)
 function edit(row) { current.value = row; dlg.value = true }
 const photoCounts = reactive({})
@@ -76,7 +76,7 @@ function openPhotos(row) { photoDriver.value = row; photoDlg.value = true }
 onMounted(async () => Object.assign(photoCounts, await api('/photos/counts?type=driver')))
 function setStatus(row, status, msg) { row.status = status; save(); ElMessage.success(`${row.name}: ${msg}`) }
 async function reject(row) {
-  await ElMessageBox.confirm(`Reject the registration of ${row.name}? The account will be set to Inactive.`, 'Reject', { type: 'warning' })
+  try { await ElMessageBox.confirm(`Reject the registration of ${row.name}? The account will be set to Inactive.`, 'Reject', { type: 'warning' }) } catch { return }
   setStatus(row, 'inactive', 'rejected')
 }
 </script>

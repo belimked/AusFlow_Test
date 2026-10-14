@@ -21,6 +21,9 @@
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item v-if="r.pickupId" label="Pump-out job"><span class="link mono" @click="go('/pickups/' + r.pickupId)">{{ r.pickupId }}</span>
               <span class="muted"> {{ fmtTime(pickup?.startAt) }}</span></el-descriptions-item>
+            <el-descriptions-item v-if="r.pickupIds?.length" label="Source pump-outs"><div class="dev-list"><span v-for="id in r.pickupIds" :key="id" class="link mono" @click="go('/pickups/' + id)">{{ id }}</span></div></el-descriptions-item>
+            <el-descriptions-item v-if="r.unloadId" label="Unload"><span class="link mono" @click="go({ path: '/trace', query: { unload: r.unloadId } })">{{ r.unloadId }}</span></el-descriptions-item>
+            <el-descriptions-item v-if="r.facilityId" label="Facility"><span class="link" @click="go('/facilities/' + r.facilityId)">{{ nameOf('facilities', r.facilityId) }}</span></el-descriptions-item>
             <el-descriptions-item v-if="r.deviceId" label="Device"><span class="link mono" @click="go('/devices/' + r.deviceId)">{{ r.deviceId }}</span>
               <span class="muted"> {{ device?.aka }}</span></el-descriptions-item>
             <el-descriptions-item v-if="r.locationId" label="Location"><span class="link" @click="go('/locations/' + r.locationId)">{{ nameOf('locations', r.locationId) }}</span></el-descriptions-item>

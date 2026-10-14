@@ -9,16 +9,16 @@
         <span class="spacer" />
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add vehicle</el-button>
       </div>
-      <el-table :data="rows" stripe>
-        <el-table-column label="Plate" width="110"><template #default="{ row }"><span class="link mono" @click="router.push('/vehicles/' + row.id)">{{ row.plate }}</span></template></el-table-column>
-        <el-table-column label="Hauler" min-width="220"><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
-        <el-table-column label="Truck type" width="110"><template #default="{ row }">{{ VEHICLE_TYPE[row.type] }}</template></el-table-column>
-        <el-table-column label="Tank capacity" width="135" align="right"><template #default="{ row }">{{ fmtL(row.tank) }}</template></el-table-column>
-        <el-table-column label="Current load" width="230"><template #default="{ row }">
+      <el-table @sort-change="onSort" :data="rows" stripe>
+        <el-table-column label="Plate" prop="plate" sortable="custom" width="110"><template #default="{ row }"><span class="link mono" @click="router.push('/vehicles/' + row.id)">{{ row.plate }}</span></template></el-table-column>
+        <el-table-column label="Hauler" prop="companyId" sortable="custom" min-width="220"><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
+        <el-table-column label="Truck type" prop="type" sortable="custom" width="110"><template #default="{ row }">{{ VEHICLE_TYPE[row.type] }}</template></el-table-column>
+        <el-table-column label="Tank capacity" prop="tank" sortable="custom" width="135" align="right"><template #default="{ row }">{{ fmtL(row.tank) }}</template></el-table-column>
+        <el-table-column label="Current load" prop="load" sortable="custom" width="230"><template #default="{ row }">
           <el-progress :percentage="pct(row)" :status="pct(row) >= 90 ? 'exception' : undefined" :format="() => fmtL(vehicleLoads.get(row.id) || 0)" />
         </template></el-table-column>
-        <el-table-column prop="qr" label="Vehicle QR code" width="160"><template #default="{ row }"><span class="mono">{{ row.qr }}</span></template></el-table-column>
-        <el-table-column label="Status" width="95"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
+        <el-table-column label="Vehicle QR code" prop="qr" sortable="custom" width="160"><template #default="{ row }"><span class="mono">{{ row.qr }}</span></template></el-table-column>
+        <el-table-column label="Status" prop="status" sortable="custom" width="95"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
         <el-table-column label="Actions" width="180" fixed="right"><template #default="{ row }">
           <el-button link type="primary" @click="edit(row)">Edit</el-button>
           <el-button link :type="row.status === 'active' ? 'danger' : 'success'" @click="toggle(row)">{{ row.status === 'active' ? 'Deactivate' : 'Activate' }}</el-button>
@@ -47,7 +47,7 @@ const filtered = computed(() => {
   return state.vehicles.filter((v) => (!f.company || v.companyId === f.company) && (!f.type || v.type === f.type) &&
     (!f.status || v.status === f.status) && (!k || [v.plate, v.qr].some((x) => (x || '').toLowerCase().includes(k))))
 })
-const { page, pageSize, rows, total } = usePaged(filtered)
+const { page, pageSize, rows, sorted, onSort, total } = usePaged(filtered, 20, { load: (v) => vehicleLoads.value.get(v.id) || 0, companyId: (v) => nameOf('companies', v.companyId) })
 const dlg = ref(false), current = ref(null)
 function edit(row) { current.value = row; dlg.value = true }
 function toggle(row) { row.status = row.status === 'active' ? 'inactive' : 'active'; save() }

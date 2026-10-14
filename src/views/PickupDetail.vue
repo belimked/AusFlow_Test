@@ -15,6 +15,7 @@
             <el-descriptions-item label="Hauler">{{ nameOf('companies', p.companyId) }}</el-descriptions-item>
             <el-descriptions-item label="Driver">{{ nameOf('drivers', p.driverId) }}</el-descriptions-item>
             <el-descriptions-item label="Vehicle"><span class="link" @click="router.push('/vehicles/' + p.vehicleId)">{{ plateOf(p.vehicleId) }}</span></el-descriptions-item>
+            <el-descriptions-item label="Waste type">{{ p.waste || '—' }}</el-descriptions-item>
             <el-descriptions-item label="Volume">{{ fmtL(p.volume) }} <span class="muted">(device capacity {{ fmtL(dev?.capacity) }})</span></el-descriptions-item>
             <el-descriptions-item label="Start">{{ fmtTime(p.startAt) }}</el-descriptions-item>
             <el-descriptions-item label="End">{{ p.endAt ? fmtTime(p.endAt) : `Not finished (${((Date.now() - new Date(p.startAt)) / 36e5).toFixed(1)} h elapsed)` }}</el-descriptions-item>
