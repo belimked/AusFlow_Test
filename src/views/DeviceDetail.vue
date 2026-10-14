@@ -23,9 +23,7 @@
                 <el-descriptions-item label="Device Ref">{{ dev.ref }}</el-descriptions-item>
                 <el-descriptions-item label="Device Number">{{ dev.number || '—' }}</el-descriptions-item>
                 <el-descriptions-item label="Device name" :span="2"><InlineField :device="dev" field="aka">{{ dev.aka || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Tag ID" :span="2"><InlineField :device="dev" field="tags">
-                  <template v-if="tagList.length"><el-tag v-for="t in tagList" :key="t" class="mono tag-id" effect="plain">{{ t }}</el-tag></template><span v-else>—</span>
-                </InlineField></el-descriptions-item>
+                <el-descriptions-item label="Tag ID" :span="2"><InlineField :device="dev" field="tags"><TagIds :device="dev" inline /></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Location" :span="2"><InlineField :device="dev" field="locationId"><span class="link" @click="router.push('/locations/' + dev.locationId)">{{ loc?.name }}</span>
                   <span class="muted" style="margin-left: 6px">{{ loc?.address1 }}, {{ loc?.suburb }}</span></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Status"><InlineField :device="dev" field="status">{{ DEVICE_STATUS[dev.status] }}</InlineField></el-descriptions-item>
@@ -48,7 +46,8 @@
             <el-col :span="9">
               <div style="text-align: center"><QrCode :value="dev.qr" :title="dev.ref + ' ' + (dev.aka || '')" :subtitle="loc?.name" :size="200" /></div>
               <el-divider />
-              <DevicePhotos :device-id="dev.id" />
+              <EntityPhotos type="device" :id="dev.id" :kinds="DEVICE_PHOTO_KINDS"
+                @added="(k, name) => photoLog(k, '', 'Added ' + name)" @removed="(k, name) => photoLog(k, name, 'Removed')" />
             </el-col>
           </el-row>
         </el-tab-pane>
@@ -85,6 +84,7 @@
             <el-table :data="nearby.slice(0, NEARBY_MAX)" size="small" style="margin-top: 12px" empty-text="No other devices in this radius">
               <el-table-column label="Distance" width="100"><template #default="{ row }">{{ fmtM(row.distance) }}</template></el-table-column>
               <el-table-column label="Device Ref" width="120"><template #default="{ row }"><span class="link mono" @click="router.push('/devices/' + row.d.id)">{{ row.d.ref }}</span></template></el-table-column>
+              <el-table-column label="Tag ID" width="138"><template #default="{ row }"><TagIds :device="row.d" /></template></el-table-column>
               <el-table-column label="Device name" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ row.d.aka || '—' }}</template></el-table-column>
               <el-table-column label="Location" min-width="200" show-overflow-tooltip><template #default="{ row }">
                 {{ nameOf('locations', row.d.locationId) }}<el-tag v-if="row.d.locationId === dev.locationId" size="small" style="margin-left: 6px">Same location</el-tag>
@@ -114,8 +114,9 @@ import DeviceDialog from '../components/DeviceDialog.vue'
 import PickupTable from '../components/PickupTable.vue'
 import ChangeLogTable from '../components/ChangeLogTable.vue'
 import InlineField from '../components/InlineField.vue'
-import DevicePhotos from '../components/DevicePhotos.vue'
-import { state, idx, nameOf, tagsOf, updateDevice, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
+import TagIds from '../components/TagIds.vue'
+import EntityPhotos from '../components/EntityPhotos.vue'
+import { state, idx, nameOf, updateDevice, logChange, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')
@@ -128,7 +129,12 @@ const markers = computed(() => [
   ...(loc.value?.lat != null ? [{ lat: loc.value.lat, lng: loc.value.lng, label: 'Location: ' + loc.value.name, color: '#e6a23c' }] : [])
 ])
 const dlg = ref(false)
-const tagList = computed(() => tagsOf(dev.value))
+const DEVICE_PHOTO_KINDS = { device: 'Device photos', coords: 'Location / coordinates photos' }
+const PHOTO_LOG_FIELD = { device: 'Device photo', coords: 'Location photo' }
+function photoLog(kind, oldValue, newValue) {
+  logChange(dev.value.id, PHOTO_LOG_FIELD[kind], oldValue, newValue, 'Web')
+  save()
+}
 
 const RADII = [100, 250, 500, 1000, 2000]
 const NEARBY_MAX = 50
@@ -156,6 +162,5 @@ function setStatus(s) {
 </script>
 <style scoped>
 .dev-info :deep(.el-descriptions__label) { width: 150px; }
-.tag-id { margin: 0 6px 2px 0; }
 .nearby-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 </style>

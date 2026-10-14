@@ -1,6 +1,6 @@
 <template>
   <div class="photos" v-loading="loading">
-    <section v-for="(label, kind) in KINDS" :key="kind">
+    <section v-for="(label, kind) in kinds" :key="kind">
       <div class="head">
         <b>{{ label }}</b><span class="muted">({{ byKind(kind).length }})</span>
         <span style="flex: 1" />
@@ -13,7 +13,7 @@
           <div class="meta" :title="`${p.name} · ${p.user} · ${fmtTime(p.at)}`">{{ fmtDate(p.at) }}</div>
         </div>
       </div>
-      <div v-else class="empty muted">{{ kind === 'device' ? 'No photos of the device yet' : 'No photos of the device position yet' }}</div>
+      <div v-else class="empty muted">No {{ label.toLowerCase() }} yet</div>
     </section>
     <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="upload" />
   </div>
@@ -22,24 +22,30 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../store/api'
-import { logChange, save, fmtDate, fmtTime } from '../store/db'
+import { fmtDate, fmtTime } from '../store/db'
 
-const props = defineProps({ deviceId: { type: String, required: true } })
-const KINDS = { device: 'Device photos', coords: 'Location / coordinates photos' }
-const LOG_FIELD = { device: 'Device photo', coords: 'Location photo' }
+// type: 'device' | 'company' | 'vehicle' | 'driver'; kinds: { kindKey: label }, must match the server's PHOTO_KINDS
+const props = defineProps({
+  type: { type: String, required: true },
+  id: { type: String, required: true },
+  kinds: { type: Object, default: () => ({ photo: 'Photos & attachments' }) }
+})
+const emit = defineEmits(['added', 'removed', 'count'])
 const MAX_SIDE = 1600
 
 const photos = ref([])
 const loading = ref(true)
 const uploading = ref('')
 const fileInput = ref()
-let pendingKind = 'device'
+let pendingKind = ''
 
 const byKind = (kind) => photos.value.filter((p) => p.kind === kind)
+const query = () => `/photos?type=${encodeURIComponent(props.type)}&id=${encodeURIComponent(props.id)}`
 
 onMounted(async () => {
   try {
-    photos.value = await api(`/devices/${encodeURIComponent(props.deviceId)}/photos`)
+    photos.value = await api(query())
+    emit('count', photos.value.length)
   } finally {
     loading.value = false
   }
@@ -69,11 +75,11 @@ async function upload(e) {
   uploading.value = kind
   try {
     for (const file of files) {
-      const row = await api(`/devices/${encodeURIComponent(props.deviceId)}/photos`, { kind, name: file.name, dataUrl: await shrink(file) })
+      const row = await api('/photos', { type: props.type, id: props.id, kind, name: file.name, dataUrl: await shrink(file) })
       photos.value.unshift(row)
-      logChange(props.deviceId, LOG_FIELD[kind], '', `Added ${file.name}`, 'Web')
+      emit('added', kind, file.name)
     }
-    save()
+    emit('count', photos.value.length)
     ElMessage.success(`${files.length} photo(s) uploaded`)
   } catch (err) {
     ElMessage.error('Upload failed: ' + err.message)
@@ -86,8 +92,8 @@ async function remove(p) {
   await ElMessageBox.confirm(`Delete photo "${p.name}"?`, 'Delete photo', { type: 'warning' })
   await api('/photos/' + p.id, null, 'DELETE')
   photos.value = photos.value.filter((x) => x.id !== p.id)
-  logChange(props.deviceId, LOG_FIELD[p.kind], p.name, 'Removed', 'Web')
-  save()
+  emit('removed', p.kind, p.name)
+  emit('count', photos.value.length)
   ElMessage.success('Photo deleted')
 }
 </script>

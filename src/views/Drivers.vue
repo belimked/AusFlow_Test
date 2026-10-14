@@ -19,6 +19,9 @@
         <el-table-column label="Registered" width="120"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
         <el-table-column label="Jobs (14 days)" width="145" align="right"><template #default="{ row }">{{ jobs.get(row.id) || 0 }}</template></el-table-column>
         <el-table-column label="Status" width="100"><template #default="{ row }"><el-tag size="small" :type="TAG[row.status]">{{ DRIVER_STATUS[row.status] }}</el-tag></template></el-table-column>
+        <el-table-column label="Photos" width="90" align="center"><template #default="{ row }">
+          <el-button link type="primary" :icon="'Picture'" @click="openPhotos(row)">{{ photoCounts[row.id] || 0 }}</el-button>
+        </template></el-table-column>
         <el-table-column label="Actions" width="190" fixed="right"><template #default="{ row }">
           <template v-if="row.status === 'pending'">
             <el-button link type="success" @click="setStatus(row, 'active', 'approved')">Approve</el-button>
@@ -33,14 +36,19 @@
     </div>
     <EntityDialog v-model="dlg" :title="current ? 'Edit driver' : 'Add driver'" :fields="driverFields(current)" :record="current"
       :defaults="{ ...DEFAULTS.drivers, companyId: f.company || undefined }" @submit="(d) => upsert('drivers', current, d)" />
+    <el-dialog v-model="photoDlg" :title="`Photos & attachments — ${photoDriver?.name}`" width="720px" destroy-on-close>
+      <EntityPhotos v-if="photoDriver" type="driver" :id="photoDriver.id" @count="(n) => (photoCounts[photoDriver.id] = n)" />
+    </el-dialog>
   </div>
 </template>
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
+import EntityPhotos from '../components/EntityPhotos.vue'
+import { api } from '../store/api'
 import { usePaged } from '../composables/paged'
 import { state, save, nameOf, fmtDate, DRIVER_STATUS } from '../store/db'
 import { driverFields, DEFAULTS, upsert } from '../store/forms'
@@ -62,6 +70,10 @@ const filtered = computed(() => {
 const { page, pageSize, rows, total } = usePaged(filtered)
 const dlg = ref(false), current = ref(null)
 function edit(row) { current.value = row; dlg.value = true }
+const photoCounts = reactive({})
+const photoDlg = ref(false), photoDriver = ref(null)
+function openPhotos(row) { photoDriver.value = row; photoDlg.value = true }
+onMounted(async () => Object.assign(photoCounts, await api('/photos/counts?type=driver')))
 function setStatus(row, status, msg) { row.status = status; save(); ElMessage.success(`${row.name}: ${msg}`) }
 async function reject(row) {
   await ElMessageBox.confirm(`Reject the registration of ${row.name}? The account will be set to Inactive.`, 'Reject', { type: 'warning' })

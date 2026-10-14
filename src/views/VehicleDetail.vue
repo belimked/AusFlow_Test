@@ -31,6 +31,9 @@
         <el-tab-pane :label="`Pump-outs (${pickups.length})`" name="p"><PickupTable :rows="pickups" hide-company hide-vehicle /></el-tab-pane>
         <el-tab-pane :label="`Transfers in / out (${transfers.length})`" name="t"><TransferTable :rows="transfers" hide-company /></el-tab-pane>
         <el-tab-pane :label="`Unloads (${unloads.length})`" name="u"><UnloadTable :rows="unloads" hide-company /></el-tab-pane>
+        <el-tab-pane :label="photoCount == null ? 'Photos' : `Photos (${photoCount})`" name="photos">
+          <EntityPhotos type="vehicle" :id="id" @count="(n) => (photoCount = n)" />
+        </el-tab-pane>
       </el-tabs>
     </div>
     <EntityDialog v-model="dlg" title="Edit vehicle" :fields="vehicleFields(v)" :record="v" @submit="(d) => upsert('vehicles', v, d)" />
@@ -42,6 +45,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QrCode from '../components/QrCode.vue'
 import EntityDialog from '../components/EntityDialog.vue'
+import EntityPhotos from '../components/EntityPhotos.vue'
 import PickupTable from '../components/PickupTable.vue'
 import TransferTable from '../components/TransferTable.vue'
 import UnloadTable from '../components/UnloadTable.vue'
@@ -50,7 +54,7 @@ import { vehicleFields, upsert } from '../store/forms'
 
 const route = useRoute(), router = useRouter()
 const id = route.params.id
-const tab = ref('p'), dlg = ref(false)
+const tab = ref('p'), dlg = ref(false), photoCount = ref(null)
 const v = computed(() => idx.vehicles.value.get(id))
 const load = computed(() => vehicleLoads.value.get(id) || 0)
 const pickups = computed(() => state.pickups.filter((p) => p.vehicleId === id))

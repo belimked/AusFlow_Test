@@ -22,6 +22,9 @@
             <el-descriptions-item label="Pump-outs (14 days)">{{ pickups.length }} jobs, {{ fmtL(pickups.reduce((s, p) => s + (p.volume || 0), 0)) }}</el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
+        <el-tab-pane :label="photoCount == null ? 'Photos' : `Photos (${photoCount})`" name="photos">
+          <EntityPhotos type="company" :id="id" @count="(n) => (photoCount = n)" />
+        </el-tab-pane>
         <el-tab-pane :label="`Drivers (${drivers.length})`" name="drivers">
           <el-table :data="drivers" size="small" stripe>
             <el-table-column prop="name" label="Name" />
@@ -63,6 +66,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EntityDialog from '../components/EntityDialog.vue'
+import EntityPhotos from '../components/EntityPhotos.vue'
 import DeviceTable from '../components/DeviceTable.vue'
 import PickupTable from '../components/PickupTable.vue'
 import TransferTable from '../components/TransferTable.vue'
@@ -73,7 +77,7 @@ import { companyFields, upsert } from '../store/forms'
 const DRIVER_TAG = { pending: 'warning', active: 'success', inactive: 'info' }
 const route = useRoute(), router = useRouter()
 const id = route.params.id
-const tab = ref('info'), opsTab = ref('p'), dlg = ref(false)
+const tab = ref('info'), opsTab = ref('p'), dlg = ref(false), photoCount = ref(null)
 const co = computed(() => idx.companies.value.get(id))
 const of = (key) => computed(() => state[key].filter((x) => x.companyId === id))
 const drivers = of('drivers'), vehicles = of('vehicles'), devices = of('devices'), pickups = of('pickups'), transfers = of('transfers'), unloads = of('unloads')

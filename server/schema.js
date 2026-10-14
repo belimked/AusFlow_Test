@@ -166,12 +166,13 @@ export const alertReads = sqliteTable('alert_reads', {
   id: text('id').primaryKey()
 })
 
-export const devicePhotos = sqliteTable('device_photos', {
+export const photos = sqliteTable('photos', {
   id: text('id').primaryKey(),
-  deviceId: text('device_id').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
   kind: text('kind').notNull(),
   name: text('name'),
   dataUrl: text('data_url').notNull(),
   user: text('user'),
   at: text('at')
-}, (t) => [index('device_photos_device_idx').on(t.deviceId)])
+}, (t) => [index('photos_entity_idx').on(t.entityType, t.entityId)])

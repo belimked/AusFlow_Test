@@ -6,10 +6,7 @@
       </el-table-column>
       <el-table-column prop="aka" label="Device name" min-width="170" show-overflow-tooltip />
       <el-table-column label="Tag ID" width="138">
-        <template #default="{ row }">
-          <div class="tag-ids"><el-tag v-for="t in tagsOf(row)" :key="t" size="small" effect="plain" class="mono">{{ t }}</el-tag></div>
-          <span v-if="!tagsOf(row).length" class="muted">—</span>
-        </template>
+        <template #default="{ row }"><TagIds :device="row" /></template>
       </el-table-column>
       <el-table-column v-if="!hideLocation" label="Location" min-width="170" show-overflow-tooltip>
         <template #default="{ row }"><span class="link" @click="router.push('/locations/' + row.locationId)">{{ nameOf('locations', row.locationId) }}</span></template>
@@ -31,14 +28,12 @@
 import { toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import Pager from './Pager.vue'
+import TagIds from './TagIds.vue'
 import { usePaged } from '../composables/paged'
-import { nameOf, tagsOf, nextService, isOverdue, overdueText, fmtDate, fmtL, DEVICE_STATUS } from '../store/db'
+import { nameOf, nextService, isOverdue, overdueText, fmtDate, fmtL, DEVICE_STATUS } from '../store/db'
 
 const props = defineProps({ rows: Array, hideLocation: Boolean, hideCompany: Boolean })
 const STATUS_TAG = { Active: 'success', Inactive: 'info', Removed: 'danger' }
 const router = useRouter()
 const { page, pageSize, rows: paged, total } = usePaged(toRef(props, 'rows'))
 </script>
-<style scoped>
-.tag-ids { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-</style>
