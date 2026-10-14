@@ -8,7 +8,9 @@
           <el-radio-group v-model="form.status"><el-radio value="active">Active</el-radio><el-radio value="inactive">Inactive</el-radio></el-radio-group>
         </el-form-item></el-col>
       </el-row>
-      <el-form-item label="Address" prop="address1"><el-input v-model="form.address1" placeholder="Street address" /></el-form-item>
+      <el-form-item label="Address" prop="address1">
+        <AddressAutocomplete v-model="form.address1" placeholder="Start typing a street address" :near="form" @select="pickAddress" />
+      </el-form-item>
       <el-form-item label="Address 2"><el-input v-model="form.address2" /></el-form-item>
       <el-row>
         <el-col :span="10"><el-form-item label="Suburb" prop="suburb"><el-input v-model="form.suburb" placeholder="Suburb" /></el-form-item></el-col>
@@ -27,6 +29,7 @@
 import { ref, reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
+import AddressAutocomplete from './AddressAutocomplete.vue'
 import { state, nextId, save } from '../store/db'
 
 const STATES = ['QLD', 'NSW', 'VIC', 'SA', 'WA', 'TAS', 'NT', 'ACT']
@@ -42,6 +45,12 @@ const rules = {
   suburb: [{ required: true, message: 'Please enter a suburb' }]
 }
 watch(visible, (v) => v && Object.assign(form, blank(), props.record ? { ...props.record } : {}))
+
+function pickAddress(s) {
+  Object.assign(form, { address1: s.address1, suburb: s.suburb, postcode: s.postcode, lat: s.lat, lng: s.lng })
+  if (STATES.includes(s.state)) form.state = s.state
+  if (!form.name.trim() && s.place) form.name = s.place
+}
 
 async function submit() {
   await formRef.value.validate()
