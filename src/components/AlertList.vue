@@ -9,7 +9,7 @@
       <div class="meta">
         <el-tag size="small" :type="TAG[a.severity]" effect="light">{{ ALERT_TYPES[a.type] }}</el-tag>
         <div class="time">
-          <el-tag v-if="statusOf(a.alertId) !== 'open'" size="small" :type="statusOf(a.alertId) === 'resolved' ? 'success' : 'primary'" effect="plain" class="st">{{ ALERT_STATUS[statusOf(a.alertId)] }}</el-tag>
+          <el-tag v-if="statusOf(a.alertId) !== 'open'" size="small" :type="statusOf(a.alertId) === 'resolved' ? 'success' : 'warning'" effect="plain" class="st">{{ ALERT_STATUS[statusOf(a.alertId)] }}</el-tag>
           <span v-if="noteCount(a)" class="notes"><el-icon><ChatDotSquare /></el-icon>{{ noteCount(a) }}</span>
           {{ ago(a.at) }}
         </div>

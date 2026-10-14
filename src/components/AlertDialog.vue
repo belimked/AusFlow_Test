@@ -9,9 +9,7 @@
         <el-tag size="small">{{ ALERT_CATEGORIES[a.category] }}</el-tag>
         <el-tag size="small" type="info">{{ ALERT_TYPES[a.type] }}</el-tag>
         <span style="flex: 1" />
-        <el-select :model-value="status" size="small" style="width: 130px" @change="changeStatus">
-          <el-option v-for="(l, v) in ALERT_STATUS" :key="v" :label="l" :value="v" />
-        </el-select>
+        <el-tag :type="STATUS_TYPE[status]" effect="dark" round>{{ ALERT_STATUS[status] }}</el-tag>
       </div>
     </template>
     <div v-if="a">
@@ -71,6 +69,13 @@
         </el-col>
       </el-row>
     </div>
+    <template #footer>
+      <div v-if="a" class="ft">
+        <span class="muted">Follow-up status</span>
+        <el-button v-for="(l, v) in ALERT_STATUS" :key="v" :type="STATUS_TYPE[v]" :plain="status !== v" :icon="STATUS_ICON[v]"
+          @click="status !== v && changeStatus(v)">{{ l }}</el-button>
+      </div>
+    </template>
   </el-dialog>
 </template>
 <script setup>
@@ -83,6 +88,8 @@ import { idx, nameOf, plateOf, fmtTime } from '../store/db'
 import { alertDrawer, ALERT_TYPES, ALERT_CATEGORIES, ALERT_STATUS, SEVERITY, statusOf, notesOf, addAlertNote, setAlertStatus } from '../store/alerts'
 
 const SEV_TAG = { critical: 'danger', warning: 'warning', info: 'info' }
+const STATUS_TYPE = { open: 'danger', progress: 'warning', resolved: 'success' }
+const STATUS_ICON = { open: 'Warning', progress: 'Clock', resolved: 'CircleCheck' }
 const router = useRouter()
 const text = ref('')
 const a = computed(() => alertDrawer.alert)
@@ -112,7 +119,9 @@ async function copyLink() {
 }
 </script>
 <style scoped>
-.hd { display: flex; align-items: center; gap: 8px; }
+.hd { display: flex; align-items: center; gap: 8px; padding-right: 24px; }
+.ft { display: flex; align-items: center; justify-content: flex-end; gap: 4px; border-top: 1px solid #ebeef5; padding-top: 12px; }
+.ft .muted { margin-right: 8px; font-size: 13px; }
 .hd .critical { color: #f56c6c; } .hd .warning { color: #e6a23c; } .hd .info { color: #909399; }
 .aid { font-size: 17px; font-weight: 700; }
 .title { margin: 0 0 4px; font-size: 17px; }
