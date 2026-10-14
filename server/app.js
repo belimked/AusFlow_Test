@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { eq, inArray, sql, count, getTableColumns } from 'drizzle-orm'
+import { eq, desc, inArray, sql, count, getTableColumns } from 'drizzle-orm'
 import * as s from './schema.js'
 import { verifyPassword, signToken, verifyToken } from './auth.js'
 
@@ -11,6 +11,10 @@ export const TABLES = {
 }
 // D1 allows at most 100 bound parameters per statement.
 const MAX_PARAMS = 100
+const PHOTO_KINDS = ['device', 'coords']
+// D1 rows are capped at 2 MB; clients downscale to ~1600px JPEG before upload.
+const MAX_PHOTO_CHARS = 1_500_000
+const DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/
 
 function pickColumns(table, row) {
   const out = {}
@@ -110,17 +114,42 @@ export function createApp(setup) {
     }
     for (const [k, rows] of Object.entries(upserts)) {
       const t = TABLES[k]
-      if (t && rows.length) stmts.push(...upsertStatements(db, t, rows))
+      if (t && rows.length) stmts.push(...upsertStatements(db, t, [...rows].reverse()))
     }
     if (seq) stmts.push(mergeSeqStatement(db, maxSeq(await readSeq(db), seq)))
     if (stmts.length) await db.batch(stmts)
     return c.json({ ok: true })
   })
 
+  app.get('/devices/:id/photos', async (c) => {
+    const rows = await c.var.db.select().from(s.devicePhotos)
+      .where(eq(s.devicePhotos.deviceId, c.req.param('id'))).orderBy(desc(s.devicePhotos.at))
+    return c.json(rows)
+  })
+
+  app.post('/devices/:id/photos', async (c) => {
+    const { kind, name, dataUrl } = await c.req.json()
+    if (!PHOTO_KINDS.includes(kind)) throw new HTTPException(400, { message: 'Invalid photo kind' })
+    if (typeof dataUrl !== 'string' || dataUrl.length > MAX_PHOTO_CHARS || !DATA_URL.test(dataUrl)) {
+      throw new HTTPException(400, { message: 'Photo must be a JPEG/PNG/WebP image under 1.1 MB' })
+    }
+    const row = {
+      id: crypto.randomUUID(), deviceId: c.req.param('id'), kind, name: String(name || '').slice(0, 200),
+      dataUrl, user: c.var.user.name, at: new Date().toISOString()
+    }
+    await c.var.db.insert(s.devicePhotos).values(row)
+    return c.json(row)
+  })
+
+  app.delete('/photos/:id', async (c) => {
+    await c.var.db.delete(s.devicePhotos).where(eq(s.devicePhotos.id, c.req.param('id')))
+    return c.json({ ok: true })
+  })
+
   app.post('/reset', async (c) => {
     const db = c.var.db
     const { data = {}, seq = {} } = await c.req.json()
-    const stmts = Object.values(TABLES).map((t) => db.delete(t))
+    const stmts = [...Object.values(TABLES), s.devicePhotos].map((t) => db.delete(t))
     for (const [k, t] of Object.entries(TABLES)) {
       const rows = data[k] || []
       if (rows.length) stmts.push(...upsertStatements(db, t, [...rows].reverse()))

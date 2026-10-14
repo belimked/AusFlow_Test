@@ -47,6 +47,7 @@ export const devices = sqliteTable('devices', {
   type: text('type'),
   waste: text('waste'),
   qr: text('qr'),
+  tags: text('tags'),
   capacity: real('capacity'),
   lat: real('lat'),
   lng: real('lng'),
@@ -164,3 +165,13 @@ export const importLogs = sqliteTable('import_logs', {
 export const alertReads = sqliteTable('alert_reads', {
   id: text('id').primaryKey()
 })
+
+export const devicePhotos = sqliteTable('device_photos', {
+  id: text('id').primaryKey(),
+  deviceId: text('device_id').notNull(),
+  kind: text('kind').notNull(),
+  name: text('name'),
+  dataUrl: text('data_url').notNull(),
+  user: text('user'),
+  at: text('at')
+}, (t) => [index('device_photos_device_idx').on(t.deviceId)])

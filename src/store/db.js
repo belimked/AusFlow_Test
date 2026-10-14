@@ -103,7 +103,7 @@ export const VEHICLE_TYPE = { small: 'Small truck', large: 'Large truck' }
 export const DEVICE_FIELDS = {
   locationId: 'Location', ref: 'Device Ref', aka: 'Device name', status: 'Status', type: 'Device type', waste: 'Waste type',
   capacity: 'Capacity (L)', freqWeeks: 'Service frequency (weeks)', lastService: 'Last service', approvalCategory: 'Approval category', risk: 'Risk rating',
-  locationDesc: 'Location description', companyId: 'Responsible hauler', qr: 'QR code', lat: 'Latitude', lng: 'Longitude', comments: 'Comments'
+  locationDesc: 'Location description', companyId: 'Responsible hauler', qr: 'QR code', tags: 'Tag ID', lat: 'Latitude', lng: 'Longitude', comments: 'Comments'
 }
 
 // ---------- service date (W09) ----------

@@ -9,11 +9,11 @@ export function logout() {
   sessionStorage.removeItem(USER)
 }
 
-export async function api(path, body) {
+export async function api(path, body, method) {
   const headers = { 'Content-Type': 'application/json' }
   const token = sessionStorage.getItem(TOKEN)
   if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch('/api' + path, { method: body ? 'POST' : 'GET', headers, body: body && JSON.stringify(body) })
+  const res = await fetch('/api' + path, { method: method || (body ? 'POST' : 'GET'), headers, body: body && JSON.stringify(body) })
   const data = await res.json().catch(() => ({}))
   if (res.status === 401 && path !== '/login') {
     logout()

@@ -29,7 +29,7 @@ export function previewImport(rows) {
 
     const patch = { ...device }
     delete patch.id
-    for (const f of ['lat', 'lng', 'qr', 'lastService']) if (patch[f] == null || patch[f] === '') delete patch[f]
+    for (const f of ['lat', 'lng', 'qr', 'tags', 'lastService']) if (patch[f] == null || patch[f] === '') delete patch[f]
     if (patch.lastService && existing.lastService && patch.lastService <= existing.lastService) delete patch.lastService
     if (loc) patch.locationId = loc.id
     if (company && coByName.has(company)) patch.companyId = coByName.get(company).id

@@ -15,6 +15,13 @@
       "when": 1791940249488,
       "tag": "0001_seed_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791961391633,
+      "tag": "0002_device_tags_photos",
+      "breakpoints": true
     }
   ]
 }

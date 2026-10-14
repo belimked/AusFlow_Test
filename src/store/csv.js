@@ -54,6 +54,7 @@ export function rowToDevice(r) {
     type: (r['Device Type'] || '').trim(),
     waste: (r['Device Waste'] || '').trim(),
     qr: (r['QR2id / Barcodes'] || '').split(/\s+/).filter(Boolean)[0] || '',
+    tags: (r['QR2id / Barcodes'] || '').split(/\s+/).filter(Boolean).join(' '),
     capacity: capacity ?? 0,
     lat: lat ?? null,
     lng: lng ?? null,

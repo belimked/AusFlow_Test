@@ -27,6 +27,7 @@
           <el-input v-model="form.qr"><template #append><el-button @click="form.qr = genQr()">Generate</el-button></template></el-input>
         </el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Last service"><el-date-picker v-model="form.lastService" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss.SSSZ" style="width: 100%" /></el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="Tag ID"><el-input v-model="form.tags" placeholder="Tag code(s), space separated" /></el-form-item></el-col>
         <el-col :span="24"><el-form-item label="Location description"><el-input v-model="form.locationDesc" type="textarea" :rows="2" /></el-form-item></el-col>
         <el-col :span="24"><el-form-item label="Comments"><el-input v-model="form.comments" type="textarea" :rows="2" /></el-form-item></el-col>
         <el-col :span="24"><el-form-item label="Device coordinates"><MapPicker v-model:lat="form.lat" v-model:lng="form.lng" style="width: 100%" /></el-form-item></el-col>
@@ -53,7 +54,7 @@ const genQr = () => Array.from({ length: 12 }, () => 'ABCDEFGHJKLMNPRSTUVWXYZ234
 const genRef = () => { let r; do r = 'DV' + (900000 + Math.floor(Math.random() * 99999)); while (idx.devices.value.has(r)); return r }
 const blank = () => ({
   locationId: '', ref: genRef(), aka: '', status: 'Active', type: 'Grease Arrestor', waste: 'Grease Trap Waste', capacity: 1000,
-  freqWeeks: 13, lastService: null, approvalCategory: '', risk: '', locationDesc: '', companyId: null, qr: genQr(), lat: null, lng: null, comments: ''
+  freqWeeks: 13, lastService: null, approvalCategory: '', risk: '', locationDesc: '', companyId: null, qr: genQr(), tags: '', lat: null, lng: null, comments: ''
 })
 const form = reactive(blank())
 const rules = {
