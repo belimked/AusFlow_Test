@@ -4,25 +4,28 @@
       <el-icon class="ico" :size="18"><component :is="ICONS[a.type]" /></el-icon>
       <div class="body">
         <div class="title">{{ a.title }}</div>
-        <div class="detail">{{ a.detail }}</div>
+        <div class="detail"><span class="mono aid">{{ a.alertId }}</span> · {{ a.detail }}</div>
       </div>
       <div class="meta">
         <el-tag size="small" :type="TAG[a.severity]" effect="light">{{ ALERT_TYPES[a.type] }}</el-tag>
-        <div class="time">{{ ago(a.at) }}</div>
+        <div class="time">
+          <el-tag v-if="statusOf(a.alertId) !== 'open'" size="small" :type="statusOf(a.alertId) === 'resolved' ? 'success' : 'primary'" effect="plain" class="st">{{ ALERT_STATUS[statusOf(a.alertId)] }}</el-tag>
+          <span v-if="noteCount(a)" class="notes"><el-icon><ChatDotSquare /></el-icon>{{ noteCount(a) }}</span>
+          {{ ago(a.at) }}
+        </div>
       </div>
     </div>
     <el-empty v-if="!items.length" description="No alerts" :image-size="60" />
   </div>
 </template>
 <script setup>
-import { useRouter } from 'vue-router'
-import { ALERT_TYPES, isRead, markRead } from '../store/alerts'
+import { ALERT_TYPES, ALERT_STATUS, isRead, statusOf, notesOf, showAlert } from '../store/alerts'
 
 defineProps({ items: Array })
 const emit = defineEmits(['navigate'])
-const router = useRouter()
 const TAG = { critical: 'danger', warning: 'warning', info: 'info' }
-const ICONS = { overdue: 'AlarmClock', longJob: 'Timer', location: 'Location', capacity: 'Histogram', nolocation: 'Position', vehicleFull: 'Van', pendingDriver: 'User' }
+const ICONS = { overdue: 'AlarmClock', longJob: 'Timer', location: 'Location', capacity: 'Histogram', nolocation: 'Position', vehicleFull: 'Van', haulerBacklog: 'Briefcase', pendingDriver: 'User' }
+const noteCount = (a) => notesOf(a.alertId).filter((n) => n.kind === 'note').length
 function ago(s) {
   const m = Math.round((Date.now() - new Date(s).getTime()) / 6e4)
   if (m < 1) return 'just now'
@@ -31,9 +34,8 @@ function ago(s) {
   return `${Math.round(m / 1440)} d ago`
 }
 function open(a) {
-  markRead([a])
   emit('navigate')
-  router.push(a.to)
+  showAlert(a)
 }
 </script>
 <style scoped>
@@ -49,5 +51,7 @@ function open(a) {
 .title { font-size: 13px; font-weight: 600; color: #1f2d3d; }
 .detail { font-size: 12px; color: #8a94a6; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta { text-align: right; flex-shrink: 0; }
-.time { font-size: 11px; color: #a8b0bd; margin-top: 4px; }
+.time { font-size: 11px; color: #a8b0bd; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.aid { color: #606f85; }
+.notes { display: inline-flex; align-items: center; gap: 2px; color: #409eff; }
 </style>

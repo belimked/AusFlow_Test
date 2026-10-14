@@ -6,13 +6,13 @@ import { api, currentUser } from './api'
 const DAY = 864e5
 export let CURRENT_USER = ''
 
-const TABLES = ['companies', 'locations', 'devices', 'drivers', 'vehicles', 'facilities', 'pickups', 'transfers', 'unloads', 'changeLogs', 'importLogs', 'alertReads']
+const TABLES = ['companies', 'locations', 'devices', 'drivers', 'vehicles', 'facilities', 'pickups', 'transfers', 'unloads', 'changeLogs', 'importLogs', 'alertReads', 'alertNotes']
 
 function emptyState() {
   return {
     seq: {},
     locations: [], devices: [], companies: [], drivers: [], vehicles: [], facilities: [],
-    pickups: [], transfers: [], unloads: [], changeLogs: [], importLogs: [], alertReads: {}
+    pickups: [], transfers: [], unloads: [], changeLogs: [], importLogs: [], alertReads: {}, alertNotes: []
   }
 }
 

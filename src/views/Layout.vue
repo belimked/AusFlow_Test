@@ -45,6 +45,7 @@
         <router-view :key="route.fullPath" />
       </el-main>
     </el-container>
+    <AlertDialog />
   </el-container>
 </template>
 <script setup>
@@ -55,6 +56,7 @@ import { resetDemo } from '../store/db'
 import { currentUser, logout as signOut } from '../store/api'
 import { unreadCount } from '../store/alerts'
 import AlertBell from '../components/AlertBell.vue'
+import AlertDialog from '../components/AlertDialog.vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import { BRAND } from '../brand'
 

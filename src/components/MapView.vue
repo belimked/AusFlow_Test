@@ -13,7 +13,7 @@ const props = defineProps({
   height: { type: Number, default: 320 }
 })
 const el = ref()
-let map, layer
+let map, layer, ro
 
 function draw() {
   layer.clearLayers()
@@ -40,7 +40,17 @@ onMounted(() => {
   layer = L.layerGroup().addTo(map)
   draw()
   setTimeout(() => map.invalidateSize(), 100)
+  // Maps inside dialogs/collapses mount before they have a size; refit once they get one.
+  let lastW = 0
+  ro = new ResizeObserver(([e]) => {
+    const w = e.contentRect.width
+    if (!w || w === lastW) return
+    lastW = w
+    map.invalidateSize()
+    draw()
+  })
+  ro.observe(el.value)
 })
 watch(() => [props.markers, props.lines, props.circle], () => map && draw(), { deep: true })
-onBeforeUnmount(() => map?.remove())
+onBeforeUnmount(() => { ro?.disconnect(); map?.remove() })
 </script>

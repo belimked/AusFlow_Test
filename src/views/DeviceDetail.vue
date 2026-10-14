@@ -68,7 +68,7 @@
           </el-timeline>
         </el-tab-pane>
         <el-tab-pane :label="`Pump-outs (${pickups.length})`" name="pickups">
-          <PickupTable :rows="pickups" hide-device />
+          <PickupHistory :rows="pickups" :device="dev" />
         </el-tab-pane>
         <el-tab-pane :label="`Nearby (${nearby.length})`" name="nearby">
           <el-empty v-if="dev.lat == null" description="This device has no coordinates — set them to find nearby devices" />
@@ -111,7 +111,7 @@ import { ElMessage } from 'element-plus'
 import MapView from '../components/MapView.vue'
 import QrCode from '../components/QrCode.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
-import PickupTable from '../components/PickupTable.vue'
+import PickupHistory from '../components/PickupHistory.vue'
 import ChangeLogTable from '../components/ChangeLogTable.vue'
 import InlineField from '../components/InlineField.vue'
 import TagIds from '../components/TagIds.vue'

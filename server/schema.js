@@ -162,6 +162,16 @@ export const importLogs = sqliteTable('import_logs', {
   errors: text('errors', { mode: 'json' })
 })
 
+export const alertNotes = sqliteTable('alert_notes', {
+  id: text('id').primaryKey(),
+  alertId: text('alert_id').notNull(),
+  kind: text('kind').notNull(),
+  status: text('status'),
+  text: text('text'),
+  user: text('user'),
+  at: text('at')
+}, (t) => [index('alert_notes_alert_idx').on(t.alertId)])
+
 export const alertReads = sqliteTable('alert_reads', {
   id: text('id').primaryKey()
 })

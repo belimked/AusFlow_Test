@@ -55,7 +55,7 @@ import { driverFields, DEFAULTS, upsert } from '../store/forms'
 
 const TAG = { pending: 'warning', active: 'success', inactive: 'info' }
 const route = useRoute(), router = useRouter()
-const f = reactive({ q: '', company: route.query.company || '', status: route.query.status || '' })
+const f = reactive({ q: route.query.q || '', company: route.query.company || '', status: route.query.status || '' })
 const pendingCount = computed(() => state.drivers.filter((d) => d.status === 'pending').length)
 const jobs = computed(() => {
   const m = new Map()
