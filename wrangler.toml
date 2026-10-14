@@ -1,9 +1,9 @@
-name = "wasteid-prototype"
+name = "wasteid-uat"
 compatibility_date = "2025-10-01"
 pages_build_output_dir = "dist"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "wasteid"
-database_id = "91b953ba-48a6-4387-85f1-9433c8b7b8ba"
+database_name = "wasteid-uat"
+database_id = "abf199d8-60db-4754-aca6-68caaa486302"
 migrations_dir = "migrations"
