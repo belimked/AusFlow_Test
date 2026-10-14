@@ -1,0 +1,1 @@
+INSERT INTO users (id, username, password_hash, display_name, role, status) VALUES ('US0001', 'admin', 'pbkdf2$100000$O6vIlj6SUAxWwjco25yk4A$BamFg5TfWWPbL4tgOQTx5ldTn0VPnLGs8dj-6gezSzE', 'admin (Authority)', 'authority', 'active');
