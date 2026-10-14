@@ -2,7 +2,7 @@
   <div class="page">
     <div class="card">
       <div class="toolbar">
-        <el-input v-model="f.q" placeholder="Search Ref / name / location / QR code" clearable :prefix-icon="'Search'" style="width: 320px" />
+        <el-input v-model="f.q" placeholder="Search Ref / name / location / Tag ID" clearable :prefix-icon="'Search'" style="width: 320px" />
         <el-select v-model="f.status" placeholder="Status" clearable style="width: 120px">
           <el-option v-for="(l, v) in DEVICE_STATUS" :key="v" :label="l" :value="v" />
         </el-select>
@@ -38,18 +38,20 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import DeviceTable from '../components/DeviceTable.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
-import { state, nameOf, isOverdue, updateDevice, DEVICE_STATUS } from '../store/db'
+import { state, nameOf, tagsOf, isOverdue, updateDevice, DEVICE_STATUS } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const f = reactive({ q: '', status: route.query.status || '', type: '', company: route.query.company || '', overdue: route.query.overdue === '1' })
 const types = computed(() => [...new Set(state.devices.map((d) => d.type).filter(Boolean))].sort())
 const filtered = computed(() => {
   const k = f.q.trim().toLowerCase()
+  const tagKey = k.replace(/[\s-]/g, '')
   return state.devices.filter((d) =>
     (!f.status || d.status === f.status) && (!f.type || d.type === f.type) &&
     (!f.company || (f.company === 'none' ? !d.companyId : d.companyId === f.company)) &&
     (!f.overdue || isOverdue(d)) &&
-    (!k || [d.ref, d.aka, d.qr, nameOf('locations', d.locationId)].some((x) => (x || '').toLowerCase().includes(k))))
+    (!k || [d.ref, d.aka, nameOf('locations', d.locationId)].some((x) => (x || '').toLowerCase().includes(k)) ||
+      (tagKey && tagsOf(d).some((t) => t.toLowerCase().includes(tagKey)))))
 })
 const overdueCount = computed(() => filtered.value.filter(isOverdue).length)
 

@@ -115,7 +115,7 @@ import PickupTable from '../components/PickupTable.vue'
 import ChangeLogTable from '../components/ChangeLogTable.vue'
 import InlineField from '../components/InlineField.vue'
 import DevicePhotos from '../components/DevicePhotos.vue'
-import { state, idx, nameOf, updateDevice, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
+import { state, idx, nameOf, tagsOf, updateDevice, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')
@@ -128,7 +128,7 @@ const markers = computed(() => [
   ...(loc.value?.lat != null ? [{ lat: loc.value.lat, lng: loc.value.lng, label: 'Location: ' + loc.value.name, color: '#e6a23c' }] : [])
 ])
 const dlg = ref(false)
-const tagList = computed(() => (dev.value.tags || dev.value.qr || '').split(/\s+/).filter(Boolean))
+const tagList = computed(() => tagsOf(dev.value))
 
 const RADII = [100, 250, 500, 1000, 2000]
 const NEARBY_MAX = 50

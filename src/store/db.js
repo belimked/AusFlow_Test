@@ -94,6 +94,7 @@ export const idx = {
 }
 export const nameOf = (key, id) => idx[key].value.get(id)?.name ?? (id ? id : '—')
 export const plateOf = (id) => idx.vehicles.value.get(id)?.plate ?? '—'
+export const tagsOf = (d) => (d.tags || d.qr || '').split(/\s+/).filter(Boolean)
 
 // ---------- labels ----------
 export const DEVICE_STATUS = { Active: 'Active', Inactive: 'Inactive', Removed: 'Removed' }
