@@ -6,20 +6,25 @@
         <el-select v-model="f.status" placeholder="Status" clearable style="width: 120px">
           <el-option v-for="(l, v) in DEVICE_STATUS" :key="v" :label="l" :value="v" />
         </el-select>
-        <el-select v-model="f.type" placeholder="Device type" clearable filterable style="width: 180px">
+        <el-select v-model="f.type" placeholder="Device type" multiple collapse-tags clearable filterable style="width: 180px">
           <el-option v-for="t in types" :key="t" :value="t" />
         </el-select>
         <el-select v-model="f.company" placeholder="Responsible hauler" clearable filterable style="width: 220px">
           <el-option label="(Unassigned)" value="none" />
-          <el-option v-for="c in state.companies" :key="c.id" :label="c.name" :value="c.id" />
+          <el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
-        <el-checkbox v-model="f.overdue" border>Overdue only</el-checkbox>
+        <el-select v-model="f.suburb" placeholder="Suburb" clearable filterable style="width: 170px"><el-option v-for="s in suburbs" :key="s" :value="s" /></el-select>
+        <el-select v-model="f.qr" placeholder="QR" clearable style="width: 130px"><el-option label="Has QR" value="has" /><el-option label="No QR" value="none" /></el-select>
+        <el-select v-model="f.freq" placeholder="Frequency" clearable style="width: 165px"><el-option label="Has frequency" value="has" /><el-option label="No frequency" value="none" /></el-select>
+        <el-select v-model="f.custodian" placeholder="Custodian" clearable style="width: 170px"><el-option label="(Unspecified)" value="none" /><el-option v-for="(label, key) in CUSTODIAN" :key="key" :label="label" :value="key" /></el-select>
+        <el-select v-model="f.overdue" placeholder="Overdue" clearable style="width: 195px"><el-option label="Overdue" value="1" /><el-option label="Overdue > 3 months" value="3m" /><el-option label="Overdue > 6 months" value="6m" /></el-select>
         <span class="spacer" />
+        <el-button @click="download">Export CSV</el-button>
         <el-button :icon="'Upload'" @click="router.push('/import')">CSV Import</el-button>
         <el-button type="primary" :icon="'Plus'" @click="openNew()">Add Device</el-button>
       </div>
       <div class="muted" style="margin-bottom: 8px">{{ filtered.length.toLocaleString() }} devices, <span class="red">{{ overdueCount }}</span> overdue</div>
-      <DeviceTable :rows="filtered">
+      <DeviceTable :rows="filtered" @sorted="(v) => (sorted = v)">
         <el-table-column label="Actions" width="190" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEdit(row)">Edit</el-button>
@@ -33,23 +38,55 @@
   </div>
 </template>
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import DeviceTable from '../components/DeviceTable.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
-import { state, nameOf, tagsOf, isOverdue, updateDevice, DEVICE_STATUS } from '../store/db'
+import { state, haulers, nameOf, tagsOf, isOverdue, overdueDays, nextService, fmtDate, fmtL, overdueText, updateDevice, DEVICE_STATUS, CUSTODIAN } from '../store/db'
+import { exportCsv } from '../store/csv'
 
 const route = useRoute(), router = useRouter()
-const f = reactive({ q: '', status: route.query.status || '', type: '', company: route.query.company || '', overdue: route.query.overdue === '1' })
+const f = reactive({ q: '', status: '', type: [], company: '', suburb: '', qr: '', overdue: '', freq: '', custodian: '' })
+const keys = ['q', 'status', 'type', 'company', 'suburb', 'qr', 'overdue', 'freq', 'custodian']
+let syncing = false
+watch(() => route.query, (query) => {
+  syncing = true
+  for (const key of keys) f[key] = key === 'type' ? (Array.isArray(query.type) ? query.type : query.type ? [query.type] : []) : (query[key] || '')
+  syncing = false
+}, { immediate: true })
+watch(f, () => {
+  if (syncing) return
+  const query = Object.fromEntries(keys.filter((key) => f[key]?.length).map((key) => [key, f[key]]))
+  if (route.query.newAt) query.newAt = route.query.newAt
+  if (keys.some((key) => JSON.stringify(query[key] || '') !== JSON.stringify(route.query[key] || ''))) router.replace({ query })
+})
+const suburbOf = computed(() => new Map(state.locations.map((l) => [l.id, l.suburb || ''])))
+const suburbs = computed(() => [...new Set(state.devices.map((d) => suburbOf.value.get(d.locationId)).filter(Boolean))].sort())
+const custodianOf = computed(() => new Map(state.locations.map((l) => [l.id, l.custodianCategory])))
+const sorted = ref(null)
+function download() {
+  exportCsv('devices', (sorted.value || filtered.value).map((d) => ({
+    'Device Ref': d.ref, 'Device name': d.aka, 'QR/Tag': tagsOf(d).join(' '),
+    Location: nameOf('locations', d.locationId), Custodian: CUSTODIAN[custodianOf.value.get(d.locationId)] || '(Unspecified)', Suburb: suburbOf.value.get(d.locationId) || '',
+    'Device type': d.type, Capacity: fmtL(d.capacity), Frequency: d.freqWeeks ? `${d.freqWeeks} wk` : '',
+    'Last service': fmtDate(d.lastService), 'Next service': fmtDate(nextService(d)), Overdue: overdueText(d),
+    'Responsible hauler': d.companyId ? nameOf('companies', d.companyId) : '', Status: DEVICE_STATUS[d.status],
+    'Waste type': d.waste, 'Approval category': d.approvalCategory, Lat: d.lat ?? '', Lng: d.lng ?? ''
+  })))
+}
 const types = computed(() => [...new Set(state.devices.map((d) => d.type).filter(Boolean))].sort())
 const filtered = computed(() => {
   const k = f.q.trim().toLowerCase()
   const tagKey = k.replace(/[\s-]/g, '')
   return state.devices.filter((d) =>
-    (!f.status || d.status === f.status) && (!f.type || d.type === f.type) &&
+    (!f.status || d.status === f.status) && (!f.type.length || f.type.includes(d.type)) &&
+    (!f.suburb || suburbOf.value.get(d.locationId) === f.suburb) &&
+    (!f.qr || (f.qr === 'has' ? tagsOf(d).length > 0 : tagsOf(d).length === 0)) &&
     (!f.company || (f.company === 'none' ? !d.companyId : d.companyId === f.company)) &&
-    (!f.overdue || isOverdue(d)) &&
+    (!f.freq || (f.freq === 'has' ? Number(d.freqWeeks) > 0 : !Number(d.freqWeeks))) &&
+    (!f.custodian || (f.custodian === 'none' ? !custodianOf.value.get(d.locationId) : custodianOf.value.get(d.locationId) === f.custodian)) &&
+    (!f.overdue || overdueDays(d) > ({ '1': 0, '3m': 91, '6m': 182 }[f.overdue] ?? 0)) &&
     (!k || [d.ref, d.aka, nameOf('locations', d.locationId)].some((x) => (x || '').toLowerCase().includes(k)) ||
       (tagKey && tagsOf(d).some((t) => t.toLowerCase().includes(tagKey)))))
 })
@@ -59,7 +96,7 @@ const dlg = ref(false), current = ref(null), defaults = ref(null)
 function openNew(locationId) { current.value = null; defaults.value = locationId ? { locationId } : null; dlg.value = true }
 function openEdit(row) { current.value = row; defaults.value = null; dlg.value = true }
 async function setStatus(row, status) {
-  if (status === 'Inactive') await ElMessageBox.confirm(`Deactivate device ${row.ref}? Overdue status will no longer be calculated.`, 'Deactivate Device', { type: 'warning' })
+  if (status === 'Inactive') { try { await ElMessageBox.confirm(`Deactivate device ${row.ref}? Overdue status will no longer be calculated.`, 'Deactivate Device', { type: 'warning' }) } catch { return } }
   updateDevice(row.id, { status }, 'Web')
   ElMessage.success('Updated and recorded in the Change Log')
 }

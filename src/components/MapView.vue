@@ -13,9 +13,10 @@ const props = defineProps({
   height: { type: Number, default: 320 }
 })
 const el = ref()
-let map, layer, ro
+let map, layer, ro, timer
 
 function draw() {
+  if (!map) return
   layer.clearLayers()
   const pts = []
   if (props.circle?.lat != null) {
@@ -39,12 +40,12 @@ onMounted(() => {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map)
   layer = L.layerGroup().addTo(map)
   draw()
-  setTimeout(() => map.invalidateSize(), 100)
+  timer = setTimeout(() => map?.invalidateSize(), 100)
   // Maps inside dialogs/collapses mount before they have a size; refit once they get one.
   let lastW = 0
   ro = new ResizeObserver(([e]) => {
     const w = e.contentRect.width
-    if (!w || w === lastW) return
+    if (!map || !w || w === lastW) return
     lastW = w
     map.invalidateSize()
     draw()
@@ -52,5 +53,5 @@ onMounted(() => {
   ro.observe(el.value)
 })
 watch(() => [props.markers, props.lines, props.circle], () => map && draw(), { deep: true })
-onBeforeUnmount(() => { ro?.disconnect(); map?.remove() })
+onBeforeUnmount(() => { clearTimeout(timer); ro?.disconnect(); map?.stop(); map?.remove(); map = null })
 </script>

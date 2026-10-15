@@ -9,7 +9,7 @@
       <div class="meta">
         <el-tag size="small" :type="TAG[a.severity]" effect="light">{{ ALERT_TYPES[a.type] }}</el-tag>
         <div class="time">
-          <el-tag v-if="statusOf(a.alertId) !== 'open'" size="small" :type="statusOf(a.alertId) === 'resolved' ? 'success' : 'warning'" effect="plain" class="st">{{ ALERT_STATUS[statusOf(a.alertId)] }}</el-tag>
+          <el-tag v-if="statusOf(a.alertId) !== 'new'" size="small" :type="statusOf(a.alertId) === 'cleared' ? 'success' : 'warning'" effect="plain" class="st">{{ ALERT_STATUS[statusOf(a.alertId)] }}</el-tag>
           <span v-if="noteCount(a)" class="notes"><el-icon><ChatDotSquare /></el-icon>{{ noteCount(a) }}</span>
           {{ ago(a.at) }}
         </div>
@@ -24,9 +24,10 @@ import { ALERT_TYPES, ALERT_STATUS, isRead, statusOf, notesOf, showAlert } from 
 defineProps({ items: Array })
 const emit = defineEmits(['navigate'])
 const TAG = { critical: 'danger', warning: 'warning', info: 'info' }
-const ICONS = { overdue: 'AlarmClock', longJob: 'Timer', location: 'Location', capacity: 'Histogram', nolocation: 'Position', vehicleFull: 'Van', haulerBacklog: 'Briefcase', pendingDriver: 'User' }
+const ICONS = { overdue: 'AlarmClock', longJob: 'Timer', location: 'Location', capacity: 'Histogram', nolocation: 'Position', vehicleFull: 'Van', haulerBacklog: 'Briefcase', pendingDriver: 'User', vehicleOverload: 'Van', unloadOverTank: 'WarningFilled', devicePumpedOver: 'Histogram', unloadDelayed: 'Timer', wasteMismatch: 'WarningFilled' }
 const noteCount = (a) => notesOf(a.alertId).filter((n) => n.kind === 'note').length
 function ago(s) {
+  if (!s) return 'Time unknown'
   const m = Math.round((Date.now() - new Date(s).getTime()) / 6e4)
   if (m < 1) return 'just now'
   if (m < 60) return `${m} min ago`

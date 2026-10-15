@@ -21,6 +21,9 @@
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item v-if="r.pickupId" label="Pump-out job"><span class="link mono" @click="go('/pickups/' + r.pickupId)">{{ r.pickupId }}</span>
               <span class="muted"> {{ fmtTime(pickup?.startAt) }}</span></el-descriptions-item>
+            <el-descriptions-item v-if="r.pickupIds?.length" label="Source pump-outs"><div class="dev-list"><span v-for="id in r.pickupIds" :key="id" class="link mono" @click="go('/pickups/' + id)">{{ id }}</span></div></el-descriptions-item>
+            <el-descriptions-item v-if="r.unloadId" label="Unload"><span class="link mono" @click="go({ path: '/trace', query: { unload: r.unloadId } })">{{ r.unloadId }}</span></el-descriptions-item>
+            <el-descriptions-item v-if="r.facilityId" label="Facility"><span class="link" @click="go('/facilities/' + r.facilityId)">{{ nameOf('facilities', r.facilityId) }}</span></el-descriptions-item>
             <el-descriptions-item v-if="r.deviceId" label="Device"><span class="link mono" @click="go('/devices/' + r.deviceId)">{{ r.deviceId }}</span>
               <span class="muted"> {{ device?.aka }}</span></el-descriptions-item>
             <el-descriptions-item v-if="r.locationId" label="Location"><span class="link" @click="go('/locations/' + r.locationId)">{{ nameOf('locations', r.locationId) }}</span></el-descriptions-item>
@@ -58,7 +61,7 @@
           <div style="text-align: right; margin-top: 6px"><el-button type="primary" size="small" :disabled="!text.trim()" @click="addNote">Add note</el-button></div>
           <el-timeline v-if="notes.length" style="margin-top: 8px; padding-left: 2px">
             <el-timeline-item v-for="n in notes" :key="n.id" :timestamp="`${fmtTime(n.at)} · ${n.user}`" :type="n.kind === 'status' ? 'primary' : ''" placement="top">
-              <span v-if="n.kind === 'status'">Status changed to <b>{{ ALERT_STATUS[n.status] }}</b></span>
+              <span v-if="n.kind === 'status'">Status changed to <b>{{ ALERT_STATUS[statusLabel(n.status)] }}</b></span>
               <span v-else class="note">{{ n.text }}</span>
             </el-timeline-item>
           </el-timeline>
@@ -72,8 +75,9 @@
     <template #footer>
       <div v-if="a" class="ft">
         <span class="muted">Follow-up status</span>
-        <el-button v-for="(l, v) in ALERT_STATUS" :key="v" :type="STATUS_TYPE[v]" :plain="status !== v" :icon="STATUS_ICON[v]"
-          @click="status !== v && changeStatus(v)">{{ l }}</el-button>
+        <el-button v-if="!['new', 'acknowledged'].includes(status)" @click="changeStatus('new')">Reopen</el-button>
+        <el-button v-for="v in ['acknowledged', 'cleared', 'dismissed']" :key="v" :type="STATUS_TYPE[v]" :plain="status !== v" :icon="STATUS_ICON[v]"
+          @click="status !== v && changeStatus(v)">{{ v === 'acknowledged' ? 'Acknowledge' : v === 'cleared' ? 'Clear' : 'Dismiss' }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -82,14 +86,16 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { requestReason } from '../store/warningActions' 
 import MapView from './MapView.vue'
 import EntityPhotos from './EntityPhotos.vue'
 import { idx, nameOf, plateOf, fmtTime } from '../store/db'
 import { alertDrawer, ALERT_TYPES, ALERT_CATEGORIES, ALERT_STATUS, SEVERITY, statusOf, notesOf, addAlertNote, setAlertStatus } from '../store/alerts'
 
 const SEV_TAG = { critical: 'danger', warning: 'warning', info: 'info' }
-const STATUS_TYPE = { open: 'danger', progress: 'warning', resolved: 'success' }
-const STATUS_ICON = { open: 'Warning', progress: 'Clock', resolved: 'CircleCheck' }
+const STATUS_TYPE = { new: 'danger', acknowledged: 'warning', cleared: 'success', dismissed: 'info' }
+const STATUS_ICON = { acknowledged: 'Clock', cleared: 'CircleCheck', dismissed: 'CircleClose' }
+const statusLabel = (s) => ({ open: 'new', progress: 'acknowledged', resolved: 'cleared' })[s] || s
 const router = useRouter()
 const text = ref('')
 const a = computed(() => alertDrawer.alert)
@@ -108,8 +114,10 @@ function addNote() {
   addAlertNote(a.value.alertId, text.value.trim())
   text.value = ''
 }
-function changeStatus(s) {
-  setAlertStatus(a.value.alertId, s)
+async function changeStatus(s) {
+  const reason = ['cleared', 'dismissed'].includes(s) ? await requestReason(s === 'cleared' ? 'Clear' : 'Dismiss') : ''
+  if (reason === null) return
+  setAlertStatus(a.value.alertId, s, reason)
   ElMessage.success(`${a.value.alertId}: ${ALERT_STATUS[s]}`)
 }
 async function copyLink() {

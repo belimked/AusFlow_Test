@@ -10,8 +10,13 @@
         <el-sub-menu index="dev">
           <template #title><el-icon><Box /></el-icon>Devices</template>
           <el-menu-item index="/devices">Device List</el-menu-item>
+          <el-menu-item index="/inspections">Inspections</el-menu-item>
+          <el-menu-item index="/tags">Device Tags</el-menu-item>
           <el-menu-item index="/import">CSV Import</el-menu-item>
           <el-menu-item index="/change-logs">Change Log</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="allco"><template #title><el-icon><OfficeBuilding /></el-icon>Companies</template>
+          <el-menu-item index="/companies?type=all">All companies</el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="co">
           <template #title><el-icon><Van /></el-icon>Haulers</template>
@@ -71,7 +76,7 @@ const active = computed(() => {
 })
 
 async function reset() {
-  await ElMessageBox.confirm('This will clear all changes, imports and new records and restore the original demo data.', 'Reset demo data', { type: 'warning' })
+  try { await ElMessageBox.confirm('This will clear all changes, imports and new records and restore the original demo data.', 'Reset demo data', { type: 'warning' }) } catch { return }
   await resetDemo()
   ElMessage.success('Demo data reset')
   router.push('/dashboard')

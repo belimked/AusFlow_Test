@@ -7,11 +7,11 @@ import { verifyPassword, signToken, verifyToken } from './auth.js'
 export const TABLES = {
   companies: s.companies, locations: s.locations, devices: s.devices, drivers: s.drivers, vehicles: s.vehicles,
   facilities: s.facilities, pickups: s.pickups, transfers: s.transfers, unloads: s.unloads,
-  changeLogs: s.changeLogs, importLogs: s.importLogs, alertReads: s.alertReads, alertNotes: s.alertNotes
+  changeLogs: s.changeLogs, importLogs: s.importLogs, alertReads: s.alertReads, alertNotes: s.alertNotes, notes: s.notes, inspections: s.inspections, reportedIssues: s.reportedIssues
 }
 // D1 allows at most 100 bound parameters per statement.
 const MAX_PARAMS = 100
-const PHOTO_KINDS = { device: ['device', 'coords'], company: ['photo'], vehicle: ['photo'], driver: ['photo'], alert: ['photo'] }
+const PHOTO_KINDS = { device: ['device', 'coords'], company: ['photo'], vehicle: ['photo'], driver: ['photo'], alert: ['photo'], inspection: ['photo'], issue: ['photo'] }
 // D1 rows are capped at 2 MB; clients downscale to ~1600px JPEG before upload.
 const MAX_PHOTO_CHARS = 1_500_000
 const DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/
@@ -162,7 +162,8 @@ export function createApp(setup) {
       if (rows.length) stmts.push(...upsertStatements(db, t, [...rows].reverse()))
     }
     stmts.push(mergeSeqStatement(db, seq))
-    await db.batch(stmts)
+    // D1 limits batch size; deletes must finish before inserts (and seq update last).
+    for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50))
     return c.json({ ok: true })
   })
 

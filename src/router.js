@@ -14,6 +14,8 @@ const routes = [
       { path: 'locations', component: v('Locations'), meta: { title: 'Locations' } },
       { path: 'locations/:id', component: v('LocationDetail'), meta: { title: 'Location Details' } },
       { path: 'devices', component: v('Devices'), meta: { title: 'Device List' } },
+      { path: 'inspections', component: v('Inspections'), meta: { title: 'Inspections' } },
+      { path: 'tags', component: v('Tags'), meta: { title: 'Device Tags' } },
       { path: 'devices/:id', component: v('DeviceDetail'), meta: { title: 'Device Details' } },
       { path: 'import', component: v('CsvImport'), meta: { title: 'CSV Import' } },
       { path: 'change-logs', component: v('ChangeLogs'), meta: { title: 'Change Log' } },

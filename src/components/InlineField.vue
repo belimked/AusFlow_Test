@@ -9,7 +9,7 @@
     <div v-else class="editor">
       <el-select-v2 v-if="kind === 'location'" v-model="value" :options="locationOptions" filterable style="width: 100%" />
       <el-select v-else-if="kind === 'company'" v-model="value" clearable filterable placeholder="No hauler" style="width: 100%">
-        <el-option v-for="c in state.companies" :key="c.id" :label="c.name" :value="c.id" />
+        <el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
       <el-select v-else-if="kind === 'status'" v-model="value" style="width: 100%">
         <el-option v-for="(l, v) in DEVICE_STATUS" :key="v" :label="l" :value="v" />
@@ -32,7 +32,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
-import { state, updateDevice, DEVICE_STATUS, DEVICE_FIELDS } from '../store/db'
+import { state, haulers, updateDevice, DEVICE_STATUS, DEVICE_FIELDS } from '../store/db'
 
 // field: a DEVICE_FIELDS key, or 'coords' for the lat/lng pair
 const props = defineProps({ device: { type: Object, required: true }, field: { type: String, required: true } })

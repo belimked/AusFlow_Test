@@ -6,6 +6,8 @@
       <el-tag :type="{ Active: 'success', Inactive: 'info', Removed: 'danger' }[dev.status]">{{ DEVICE_STATUS[dev.status] }}</el-tag>
       <el-tag v-if="isOverdue(dev)" type="danger" effect="dark">{{ overdueText(dev) }}</el-tag>
       <span style="flex: 1" />
+      <el-button @click="tab = 'notes'; noteDialog = true">Add note</el-button>
+      <el-button @click="tab = 'inspections'; inspectDialog = true">Inspect</el-button>
       <el-button :icon="'Edit'" @click="dlg = true">Edit</el-button>
       <el-dropdown @command="setStatus">
         <el-button>Change status<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
@@ -28,7 +30,7 @@
                   <span class="muted" style="margin-left: 6px">{{ loc?.address1 }}, {{ loc?.suburb }}</span></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Status"><InlineField :device="dev" field="status">{{ DEVICE_STATUS[dev.status] }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Device type"><InlineField :device="dev" field="type">{{ dev.type || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Waste type"><InlineField :device="dev" field="waste">{{ dev.waste || '—' }}</InlineField></el-descriptions-item>
+                <el-descriptions-item label="Waste type"><InlineField :device="dev" field="waste"><WasteType :text="dev.waste" /></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Capacity"><InlineField :device="dev" field="capacity">{{ fmtL(dev.capacity) }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Service frequency"><InlineField :device="dev" field="freqWeeks">{{ dev.freqWeeks ? dev.freqWeeks + ' wk' : 'Not set' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Last service"><InlineField :device="dev" field="lastService">{{ fmtTime(dev.lastService) }}</InlineField></el-descriptions-item>
@@ -37,14 +39,17 @@
                 <el-descriptions-item label="Responsible hauler" :span="2"><InlineField :device="dev" field="companyId">
                   <span v-if="dev.companyId" class="link" @click="router.push('/companies/' + dev.companyId)">{{ nameOf('companies', dev.companyId) }}</span><span v-else>—</span>
                 </InlineField></el-descriptions-item>
+                <el-descriptions-item label="Owner"><span v-if="loc?.ownerId" class="link" @click="router.push('/companies/' + loc.ownerId)">{{ nameOf('companies', loc.ownerId) }}</span><span v-else>—</span></el-descriptions-item>
+                <el-descriptions-item label="Occupier"><span v-if="loc?.occupierId" class="link" @click="router.push('/companies/' + loc.occupierId)">{{ nameOf('companies', loc.occupierId) }}</span><span v-else>—</span></el-descriptions-item>
                 <el-descriptions-item label="Location description" :span="2"><InlineField :device="dev" field="locationDesc">{{ dev.locationDesc || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Comments" :span="2"><InlineField :device="dev" field="comments">{{ dev.comments || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Coordinates" :span="2"><InlineField :device="dev" field="coords">{{ dev.lat != null ? `${dev.lat.toFixed(6)}, ${dev.lng.toFixed(6)}` : 'Not set' }}</InlineField></el-descriptions-item>
+                <el-descriptions-item label="Coordinates" :span="2"><InlineField :device="dev" field="coords">{{ typeof dev.lat === 'number' && typeof dev.lng === 'number' ? `${dev.lat.toFixed(6)}, ${dev.lng.toFixed(6)}` : 'Not set' }}</InlineField></el-descriptions-item>
               </el-descriptions>
               <MapView :markers="markers" :height="220" style="margin-top: 12px" />
             </el-col>
             <el-col :span="9">
-              <div style="text-align: center"><QrCode :value="dev.qr" :title="dev.ref + ' ' + (dev.aka || '')" :subtitle="loc?.name" :size="200" /></div>
+              <div style="text-align: center"><QrCode :value="tagsOf(dev)[0] || ''" :system-ref="dev.ref" :title="dev.ref + ' ' + (dev.aka || '')" :subtitle="loc?.name" :size="200"
+                editable :validate="qrTaken" @change="setQr" /></div>
               <el-divider />
               <EntityPhotos type="device" :id="dev.id" :kinds="DEVICE_PHOTO_KINDS"
                 @added="(k, name) => photoLog(k, '', 'Added ' + name)" @removed="(k, name) => photoLog(k, name, 'Removed')" />
@@ -95,19 +100,50 @@
             </el-table>
           </template>
         </el-tab-pane>
+        <el-tab-pane :label="`Notes (${notes.length})`" name="notes">
+          <el-button type="primary" @click="noteDialog = true">Add note</el-button>
+          <div v-for="n in notes" :key="n.id" style="padding: 10px; border-bottom: 1px solid #eee">{{ n.text }} <span class="muted">· {{ n.user }} · {{ n.source }} · {{ fmtTime(n.at) }}</span></div>
+        </el-tab-pane>
+        <el-tab-pane :label="`Inspections (${inspections.length})`" name="inspections">
+          <el-button type="primary" @click="inspectDialog = true">Inspect</el-button>
+          <el-table :data="inspections" row-key="id"><el-table-column type="expand"><template #default="{ row }"><EntityPhotos type="inspection" :id="row.id" /></template></el-table-column>
+            <el-table-column label="Date" width="190"><template #default="{ row }">{{ fmtTime(row.at) }}</template></el-table-column>
+            <el-table-column prop="inspector" label="Inspector" /><el-table-column label="Result"><template #default="{ row }"><el-tag :type="row.result === 'compliant' ? 'success' : 'warning'">{{ INSPECTION_RESULTS[row.result] }}</el-tag></template></el-table-column>
+            <el-table-column prop="comments" label="Comments" /><el-table-column prop="nextInspection" label="Next inspection" /><el-table-column prop="source" label="Source" />
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane :label="`Reported Issues (${openIssues})`" name="issues">
+          <el-table :data="issues" row-key="id"><el-table-column type="expand"><template #default="{ row }"><EntityPhotos type="issue" :id="row.id" readonly /></template></el-table-column>
+            <el-table-column label="Category"><template #default="{ row }">{{ ISSUE_CATEGORIES[row.category] }}</template></el-table-column>
+            <el-table-column prop="description" label="Description" /><el-table-column prop="reportedBy" label="Reported by" />
+            <el-table-column label="Date"><template #default="{ row }">{{ fmtTime(row.at) }}</template></el-table-column>
+            <el-table-column label="Status"><template #default="{ row }"><el-tag :type="row.status === 'open' ? 'warning' : 'success'">{{ row.status }}</el-tag></template></el-table-column>
+            <el-table-column label="Action"><template #default="{ row }"><el-button v-if="row.status === 'open'" link type="primary" @click="resolve(row)">Resolve</el-button></template></el-table-column>
+          </el-table>
+        </el-tab-pane>
         <el-tab-pane :label="`Change Log (${logs.length})`" name="logs">
           <ChangeLogTable :rows="logs" hide-device />
         </el-tab-pane>
       </el-tabs>
     </div>
     <DeviceDialog v-model="dlg" :record="dev" />
+    <el-dialog v-model="noteDialog" title="Add note" width="500px"><el-input v-model="noteText" type="textarea" /><template #footer><el-button @click="noteDialog = false">Cancel</el-button><el-button type="primary" :disabled="!noteText.trim()" @click="addNote">Save</el-button></template></el-dialog>
+    <el-dialog v-model="inspectDialog" title="Inspect" width="550px">
+      <el-form label-width="130px"><el-form-item label="Result" required><el-select v-model="inspection.result" style="width: 100%"><el-option v-for="(label, key) in INSPECTION_RESULTS" :key="key" :label="label" :value="key" /></el-select></el-form-item>
+        <el-form-item label="Inspected at"><el-date-picker v-model="inspection.at" type="datetime" style="width: 100%" /></el-form-item>
+        <el-form-item label="Inspector"><el-input v-model="inspection.inspector" /></el-form-item>
+        <el-form-item label="Comments"><el-input v-model="inspection.comments" type="textarea" /></el-form-item>
+        <el-form-item label="Next inspection"><el-date-picker v-model="inspection.nextInspection" type="date" clearable style="width: 100%" /></el-form-item>
+        <p class="muted">Photos can be uploaded by expanding the saved inspection row.</p>
+      </el-form><template #footer><el-button @click="inspectDialog = false">Cancel</el-button><el-button type="primary" :disabled="!inspection.result" @click="addInspection">Save</el-button></template>
+    </el-dialog>
   </div>
   <el-empty v-else description="Device not found" />
 </template>
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import MapView from '../components/MapView.vue'
 import QrCode from '../components/QrCode.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
@@ -115,14 +151,36 @@ import PickupHistory from '../components/PickupHistory.vue'
 import ChangeLogTable from '../components/ChangeLogTable.vue'
 import InlineField from '../components/InlineField.vue'
 import TagIds from '../components/TagIds.vue'
+import WasteType from '../components/WasteType.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
-import { state, idx, nameOf, updateDevice, logChange, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
+import { tagsOf, state, idx, nameOf, updateDevice, logChange, addEntityNote, nextId, CURRENT_USER, INSPECTION_RESULTS, ISSUE_CATEGORIES, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')
 const dev = computed(() => idx.devices.value.get(route.params.id))
 const loc = computed(() => idx.locations.value.get(dev.value?.locationId))
 const pickups = computed(() => state.pickups.filter((p) => p.deviceId === route.params.id))
+const notes = computed(() => state.notes.filter((n) => n.entityType === 'device' && n.entityId === route.params.id))
+const inspections = computed(() => state.inspections.filter((i) => i.deviceId === route.params.id))
+const issues = computed(() => state.reportedIssues.filter((i) => i.deviceId === route.params.id))
+const openIssues = computed(() => issues.value.filter((i) => i.status === 'open').length)
+const noteDialog = ref(false), noteText = ref(''), inspectDialog = ref(false)
+const inspection = ref({ result: '', at: new Date(), inspector: CURRENT_USER, comments: '', nextInspection: null })
+function addNote() { if (!noteText.value.trim()) return; addEntityNote('device', dev.value.id, noteText.value); noteText.value = ''; noteDialog.value = false }
+function addInspection() {
+  if (!inspection.value.result) return
+  state.inspections.unshift({ id: nextId('IN'), deviceId: dev.value.id, inspector: inspection.value.inspector,
+    at: new Date(inspection.value.at || Date.now()).toISOString(), result: inspection.value.result,
+    comments: inspection.value.comments, nextInspection: inspection.value.nextInspection ? new Date(inspection.value.nextInspection).toISOString().slice(0, 10) : null, source: 'Web' })
+  logChange(dev.value.id, 'Inspection', '', INSPECTION_RESULTS[inspection.value.result], 'Web'); save()
+  inspectDialog.value = false; inspection.value = { result: '', at: new Date(), inspector: CURRENT_USER, comments: '', nextInspection: null }
+}
+async function resolve(issue) {
+  let text
+  try { ({ value: text } = await ElMessageBox.prompt('Resolution explanation (required)', 'Resolve reported issue', { inputValidator: (v) => !!v?.trim() || 'Explanation is required' })) } catch { return }
+  issue.status = 'resolved'; addEntityNote('device', dev.value.id, `Resolved ${ISSUE_CATEGORIES[issue.category]} (${issue.id}): ${text.trim()}`)
+  logChange(dev.value.id, 'Reported issue', 'open', `Resolved ${issue.id}: ${text.trim()}`, 'Web'); save()
+}
 const logs = computed(() => state.changeLogs.filter((l) => l.deviceId === route.params.id))
 const markers = computed(() => [
   ...(dev.value.lat != null ? [{ lat: dev.value.lat, lng: dev.value.lng, label: dev.value.ref, color: '#409eff', permanent: true }] : []),
@@ -158,6 +216,15 @@ const nearbyMarkers = computed(() => [
 function setStatus(s) {
   updateDevice(dev.value.id, { status: s }, 'Web')
   ElMessage.success('Status updated and recorded in the Change Log')
+}
+const qrTaken = (code) => {
+  const other = state.devices.find((d) => d.id !== dev.value.id && tagsOf(d).some((t) => t.toLowerCase() === code.toLowerCase()))
+  return other ? `Already used by device ${other.ref}` : ''
+}
+function setQr(code) {
+  const [, ...rest] = tagsOf(dev.value)
+  updateDevice(dev.value.id, { tags: [code, ...rest].join(' '), qr: code }, 'Web')
+  ElMessage.success('QR code updated and recorded in the Change Log')
 }
 </script>
 <style scoped>

@@ -158,7 +158,7 @@ const show = (f, v) => {
   return v
 }
 async function execute() {
-  await ElMessageBox.confirm('Import now? Rows with errors will be skipped.', 'Confirm import', { type: 'warning' })
+  try { await ElMessageBox.confirm('Import now? Rows with errors will be skipped.', 'Confirm import', { type: 'warning' }) } catch { return }
   result.value = executeImport(plan.value, fileName.value)
   step.value = 2
 }

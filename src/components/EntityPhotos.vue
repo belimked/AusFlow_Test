@@ -4,12 +4,12 @@
       <div class="head">
         <b>{{ label }}</b><span class="muted">({{ byKind(kind).length }})</span>
         <span style="flex: 1" />
-        <el-button size="small" :icon="'Upload'" :loading="uploading === kind" @click="pick(kind)">Upload</el-button>
+        <el-button v-if="!readonly" size="small" :icon="'Upload'" :loading="uploading === kind" @click="pick(kind)">Upload</el-button>
       </div>
       <div v-if="byKind(kind).length" class="grid">
         <div v-for="(p, i) in byKind(kind)" :key="p.id" class="thumb">
           <el-image :src="p.dataUrl" fit="cover" :preview-src-list="byKind(kind).map((x) => x.dataUrl)" :initial-index="i" preview-teleported hide-on-click-modal />
-          <el-icon class="del" title="Delete photo" @click="remove(p)"><Delete /></el-icon>
+          <el-icon v-if="!readonly" class="del" title="Delete photo" @click="remove(p)"><Delete /></el-icon>
           <div class="meta" :title="`${p.name} · ${p.user} · ${fmtTime(p.at)}`">{{ fmtDate(p.at) }}</div>
         </div>
       </div>
@@ -28,6 +28,7 @@ import { fmtDate, fmtTime } from '../store/db'
 const props = defineProps({
   type: { type: String, required: true },
   id: { type: String, required: true },
+  readonly: { type: Boolean, default: false },
   kinds: { type: Object, default: () => ({ photo: 'Photos & attachments' }) }
 })
 const emit = defineEmits(['added', 'removed', 'count'])
@@ -89,7 +90,7 @@ async function upload(e) {
 }
 
 async function remove(p) {
-  await ElMessageBox.confirm(`Delete photo "${p.name}"?`, 'Delete photo', { type: 'warning' })
+  try { await ElMessageBox.confirm(`Delete photo "${p.name}"?`, 'Delete photo', { type: 'warning' }) } catch { return }
   await api('/photos/' + p.id, null, 'DELETE')
   photos.value = photos.value.filter((x) => x.id !== p.id)
   emit('removed', p.kind, p.name)
