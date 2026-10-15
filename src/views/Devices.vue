@@ -11,10 +11,12 @@
         </el-select>
         <el-select v-model="f.company" placeholder="Responsible hauler" clearable filterable style="width: 220px">
           <el-option label="(Unassigned)" value="none" />
-          <el-option v-for="c in state.companies" :key="c.id" :label="c.name" :value="c.id" />
+          <el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
         <el-select v-model="f.suburb" placeholder="Suburb" clearable filterable style="width: 170px"><el-option v-for="s in suburbs" :key="s" :value="s" /></el-select>
         <el-select v-model="f.qr" placeholder="QR" clearable style="width: 130px"><el-option label="Has QR" value="has" /><el-option label="No QR" value="none" /></el-select>
+        <el-select v-model="f.freq" placeholder="Frequency" clearable style="width: 165px"><el-option label="Has frequency" value="has" /><el-option label="No frequency" value="none" /></el-select>
+        <el-select v-model="f.custodian" placeholder="Custodian" clearable style="width: 170px"><el-option label="(Unspecified)" value="none" /><el-option v-for="(label, key) in CUSTODIAN" :key="key" :label="label" :value="key" /></el-select>
         <el-select v-model="f.overdue" placeholder="Overdue" clearable style="width: 195px"><el-option label="Overdue" value="1" /><el-option label="Overdue > 3 months" value="3m" /><el-option label="Overdue > 6 months" value="6m" /></el-select>
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
@@ -41,12 +43,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import DeviceTable from '../components/DeviceTable.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
-import { state, nameOf, tagsOf, isOverdue, overdueDays, nextService, fmtDate, fmtL, overdueText, updateDevice, DEVICE_STATUS } from '../store/db'
+import { state, haulers, nameOf, tagsOf, isOverdue, overdueDays, nextService, fmtDate, fmtL, overdueText, updateDevice, DEVICE_STATUS, CUSTODIAN } from '../store/db'
 import { exportCsv } from '../store/csv'
 
 const route = useRoute(), router = useRouter()
-const f = reactive({ q: '', status: '', type: [], company: '', suburb: '', qr: '', overdue: '' })
-const keys = ['q', 'status', 'type', 'company', 'suburb', 'qr', 'overdue']
+const f = reactive({ q: '', status: '', type: [], company: '', suburb: '', qr: '', overdue: '', freq: '', custodian: '' })
+const keys = ['q', 'status', 'type', 'company', 'suburb', 'qr', 'overdue', 'freq', 'custodian']
 let syncing = false
 watch(() => route.query, (query) => {
   syncing = true
@@ -61,11 +63,12 @@ watch(f, () => {
 })
 const suburbOf = computed(() => new Map(state.locations.map((l) => [l.id, l.suburb || ''])))
 const suburbs = computed(() => [...new Set(state.devices.map((d) => suburbOf.value.get(d.locationId)).filter(Boolean))].sort())
+const custodianOf = computed(() => new Map(state.locations.map((l) => [l.id, l.custodianCategory])))
 const sorted = ref(null)
 function download() {
   exportCsv('devices', (sorted.value || filtered.value).map((d) => ({
     'Device Ref': d.ref, 'Device name': d.aka, 'QR/Tag': tagsOf(d).join(' '),
-    Location: nameOf('locations', d.locationId), Suburb: suburbOf.value.get(d.locationId) || '',
+    Location: nameOf('locations', d.locationId), Custodian: CUSTODIAN[custodianOf.value.get(d.locationId)] || '(Unspecified)', Suburb: suburbOf.value.get(d.locationId) || '',
     'Device type': d.type, Capacity: fmtL(d.capacity), Frequency: d.freqWeeks ? `${d.freqWeeks} wk` : '',
     'Last service': fmtDate(d.lastService), 'Next service': fmtDate(nextService(d)), Overdue: overdueText(d),
     'Responsible hauler': d.companyId ? nameOf('companies', d.companyId) : '', Status: DEVICE_STATUS[d.status],
@@ -81,6 +84,8 @@ const filtered = computed(() => {
     (!f.suburb || suburbOf.value.get(d.locationId) === f.suburb) &&
     (!f.qr || (f.qr === 'has' ? tagsOf(d).length > 0 : tagsOf(d).length === 0)) &&
     (!f.company || (f.company === 'none' ? !d.companyId : d.companyId === f.company)) &&
+    (!f.freq || (f.freq === 'has' ? Number(d.freqWeeks) > 0 : !Number(d.freqWeeks))) &&
+    (!f.custodian || (f.custodian === 'none' ? !custodianOf.value.get(d.locationId) : custodianOf.value.get(d.locationId) === f.custodian)) &&
     (!f.overdue || overdueDays(d) > ({ '1': 0, '3m': 91, '6m': 182 }[f.overdue] ?? 0)) &&
     (!k || [d.ref, d.aka, nameOf('locations', d.locationId)].some((x) => (x || '').toLowerCase().includes(k)) ||
       (tagKey && tagsOf(d).some((t) => t.toLowerCase().includes(tagKey)))))

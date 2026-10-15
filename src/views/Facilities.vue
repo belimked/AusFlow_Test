@@ -4,6 +4,7 @@
       <div class="toolbar">
         <el-input v-model="q" placeholder="Search name / address" clearable :prefix-icon="'Search'" style="width: 260px" />
         <span class="spacer" />
+        <el-button @click="download">Export CSV</el-button>
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add Treatment Facility</el-button>
       </div>
       <el-row :gutter="12">
@@ -29,6 +30,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { exportCsv } from '../store/csv'
 import { usePaged } from '../composables/paged'
 import MapView from '../components/MapView.vue'
 import EntityDialog from '../components/EntityDialog.vue'
@@ -36,6 +38,10 @@ import { state, save, fmtL, ENTITY_STATUS } from '../store/db'
 import { facilityFields, DEFAULTS, upsert } from '../store/forms'
 
 const router = useRouter()
+function download() {
+  exportCsv('facilities', sortedFacilities.value.map((f) => ({ Name: f.name, Address: f.address,
+    'Unloaded (14 days)': fmtL(volumes.value.get(f.id) || 0), Status: ENTITY_STATUS[f.status] })))
+}
 const q = ref('')
 const filtered = computed(() => {
   const k = q.value.trim().toLowerCase()
@@ -44,7 +50,7 @@ const filtered = computed(() => {
 const { sorted: sortedFacilities, onSort } = usePaged(filtered, 1000000, { volume: (f) => volumes.value.get(f.id) || 0 })
 const volumes = computed(() => {
   const m = new Map()
-  for (const u of state.unloads) m.set(u.facilityId, (m.get(u.facilityId) || 0) + u.volume)
+  for (const u of state.unloads) if (Date.now() - new Date(u.at).getTime() <= 14 * 864e5) m.set(u.facilityId, (m.get(u.facilityId) || 0) + u.volume)
   return m
 })
 const markers = computed(() => filtered.value.map((f) => ({ lat: f.lat, lng: f.lng, label: f.name, color: f.status === 'active' ? '#67c23a' : '#909399' })))

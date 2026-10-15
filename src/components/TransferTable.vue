@@ -25,4 +25,5 @@ const props = defineProps({ rows: Array, hideCompany: Boolean })
 const emit = defineEmits(['view'])
 const router = useRouter()
 const { page, pageSize, rows: paged, sorted, onSort, total } = usePaged(toRef(props, 'rows'), 20, { companyId: (r) => nameOf('companies', r.companyId), driverId: (r) => nameOf('drivers', r.driverId), fromVehicleId: (r) => plateOf(r.fromVehicleId), toVehicleId: (r) => plateOf(r.toVehicleId) })
+defineExpose({ sorted })
 </script>

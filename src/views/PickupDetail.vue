@@ -15,7 +15,10 @@
             <el-descriptions-item label="Hauler">{{ nameOf('companies', p.companyId) }}</el-descriptions-item>
             <el-descriptions-item label="Driver">{{ nameOf('drivers', p.driverId) }}</el-descriptions-item>
             <el-descriptions-item label="Vehicle"><span class="link" @click="router.push('/vehicles/' + p.vehicleId)">{{ plateOf(p.vehicleId) }}</span></el-descriptions-item>
-            <el-descriptions-item label="Waste type">{{ p.waste || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="Waste type"><WasteType :text="p.waste" /></el-descriptions-item>
+            <el-descriptions-item label="Delivery status">{{ delivery?.status }}</el-descriptions-item>
+            <el-descriptions-item label="Destination"><span v-if="delivery?.facilityId" class="link" @click="router.push('/facilities/' + delivery.facilityId)">{{ nameOf('facilities', delivery.facilityId) }}</span><span v-else>Pending ({{ plateOf(delivery?.vehicleId) }})</span></el-descriptions-item>
+            <el-descriptions-item v-if="delivery?.unload" label="Delivered (estimated)">{{ fmtL(estimate) }} <span class="muted">pro-rata estimate</span></el-descriptions-item>
             <el-descriptions-item label="Volume">{{ fmtL(p.volume) }} <span class="muted">(device capacity {{ fmtL(dev?.capacity) }})</span></el-descriptions-item>
             <el-descriptions-item label="Start">{{ fmtTime(p.startAt) }}</el-descriptions-item>
             <el-descriptions-item label="End">{{ p.endAt ? fmtTime(p.endAt) : `Not finished (${((Date.now() - new Date(p.startAt)) / 36e5).toFixed(1)} h elapsed)` }}</el-descriptions-item>
@@ -41,6 +44,7 @@
         </div>
       </el-col>
     </el-row>
+    <OperationFollowup kind="pickup" :id="p.id" :app-note="p.note" />
   </div>
   <el-empty v-else description="Record not found" />
 </template>
@@ -48,12 +52,21 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MapView from '../components/MapView.vue'
+import WasteType from '../components/WasteType.vue'
 import TraceSteps from '../components/TraceSteps.vue'
-import { idx, nameOf, plateOf, fmtTime, fmtL, fmtM } from '../store/db'
+import OperationFollowup from '../components/OperationFollowup.vue'
+import { idx, nameOf, plateOf, fmtTime, fmtL, fmtM, pickupDeliveries, unloadSources } from '../store/db'
 
 const FLAGS = { location: 'Location mismatch', capacity: 'Over capacity', nolocation: 'No location' }
 const route = useRoute(), router = useRouter()
 const p = computed(() => idx.pickups.value.get(route.params.id))
+const delivery = computed(() => pickupDeliveries.value.get(p.value?.id))
+const estimate = computed(() => {
+  const u = delivery.value?.unload
+  if (!u) return null
+  const collected = unloadSources(u).reduce((sum, source) => sum + (Number(source.volume) || 0), 0)
+  return collected ? Math.round(p.value.volume * u.volume / collected) : null
+})
 const dev = computed(() => idx.devices.value.get(p.value?.deviceId))
 const markers = computed(() => [
   ...(dev.value?.lat != null ? [{ lat: dev.value.lat, lng: dev.value.lng, label: 'Device ' + dev.value.ref, color: '#e6a23c' }] : []),

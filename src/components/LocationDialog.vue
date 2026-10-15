@@ -8,6 +8,9 @@
           <el-radio-group v-model="form.status"><el-radio value="active">Active</el-radio><el-radio value="inactive">Inactive</el-radio></el-radio-group>
         </el-form-item></el-col>
       </el-row>
+      <el-form-item label="Custodian"><el-select v-model="form.custodianCategory" placeholder="(Unspecified)" clearable style="width: 220px"><el-option v-for="(label, key) in CUSTODIAN" :key="key" :label="label" :value="key" /></el-select></el-form-item>
+      <el-form-item label="Owner"><el-select v-model="form.ownerId" clearable filterable style="width: 100%"><el-option v-for="c in companiesFor('owner')" :key="c.id" :label="c.name" :value="c.id" /></el-select></el-form-item>
+      <el-form-item label="Occupier"><el-select v-model="form.occupierId" clearable filterable style="width: 100%"><el-option v-for="c in companiesFor('occupier')" :key="c.id" :label="c.name" :value="c.id" /></el-select></el-form-item>
       <el-form-item label="Address" prop="address1">
         <AddressAutocomplete v-model="form.address1" placeholder="Start typing a street address" :near="form" @select="pickAddress" />
       </el-form-item>
@@ -30,14 +33,15 @@ import { ref, reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
 import AddressAutocomplete from './AddressAutocomplete.vue'
-import { state, nextId, save } from '../store/db'
+import { state, nextId, save, CUSTODIAN, companyTypes } from '../store/db'
 
+const companiesFor = (type) => state.companies.filter((c) => companyTypes(c).includes(type))
 const STATES = ['QLD', 'NSW', 'VIC', 'SA', 'WA', 'TAS', 'NT', 'ACT']
 const visible = defineModel({ type: Boolean })
 const props = defineProps({ record: Object })
 const emit = defineEmits(['saved'])
 const formRef = ref()
-const blank = () => ({ name: '', agreementNo: '', address1: '', address2: '', suburb: '', state: 'QLD', postcode: '', lat: null, lng: null, status: 'active' })
+const blank = () => ({ name: '', agreementNo: '', custodianCategory: null, ownerId: null, occupierId: null, address1: '', address2: '', suburb: '', state: 'QLD', postcode: '', lat: null, lng: null, status: 'active' })
 const form = reactive(blank())
 const rules = {
   name: [{ required: true, message: 'Please enter a location name' }],

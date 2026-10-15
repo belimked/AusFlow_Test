@@ -22,13 +22,14 @@
         <el-select v-model="f.category" placeholder="Category" clearable style="width: 160px"><el-option v-for="(l, v) in ALERT_CATEGORIES" :key="v" :label="l" :value="v" /></el-select>
         <el-select v-model="f.type" placeholder="Type" clearable style="width: 190px"><el-option v-for="(l, v) in ALERT_TYPES" :key="v" :label="l" :value="v" /></el-select>
         <el-select v-model="f.severity" placeholder="Severity" clearable style="width: 130px"><el-option v-for="(l, v) in SEVERITY" :key="v" :label="l" :value="v" /></el-select>
-        <el-select v-model="f.status" placeholder="Follow-up" clearable style="width: 140px"><el-option v-for="(l, v) in ALERT_STATUS" :key="v" :label="l" :value="v" /></el-select>
+        <el-select v-model="f.status" placeholder="Status" style="width: 170px"><el-option label="Active" value="active" /><el-option v-for="(l, v) in ALERT_STATUS" :key="v" :label="l" :value="v" /><el-option label="All" value="all" /></el-select>
         <el-radio-group v-model="f.read">
           <el-radio-button value="">All</el-radio-button>
           <el-radio-button value="unread">Unread</el-radio-button>
           <el-radio-button value="read">Read</el-radio-button>
         </el-radio-group>
         <span class="spacer" />
+        <el-button @click="download">Export CSV</el-button>
         <el-button :disabled="!filtered.some((a) => !isRead(a))" @click="markRead(filtered)">Mark {{ filtered.length }} shown as read</el-button>
       </div>
       <p class="muted" style="margin: 0 0 8px; font-size: 12px">
@@ -46,23 +47,30 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AlertList from '../components/AlertList.vue'
 import Pager from '../components/Pager.vue'
+import { exportCsv } from '../store/csv'
+import { fmtTime } from '../store/db'
 import { usePaged } from '../composables/paged'
-import { alerts, isRead, markRead, statusOf, showAlert, ALERT_TYPES, ALERT_CATEGORIES, ALERT_STATUS, SEVERITY, REMIND_HOURS } from '../store/alerts'
+import { alerts, isRead, markRead, statusOf, showAlert, ALERT_TYPES, ALERT_CATEGORIES, ALERT_STATUS, SEVERITY, REMIND_HOURS, isActive } from '../store/alerts'
 
 const route = useRoute(), router = useRouter()
-const f = reactive({ q: '', category: '', type: '', severity: '', status: '', read: '' })
+const f = reactive({ q: '', category: '', type: '', severity: '', status: 'active', read: '' })
 watch(() => route.query, (query) => {
-  for (const key of Object.keys(f)) f[key] = query[key] || ''
+  for (const key of Object.keys(f)) f[key] = query[key] || (key === 'status' ? 'active' : '')
 }, { immediate: true })
 const counts = computed(() => alerts.value.reduce((m, a) => ((m[a.type] = (m[a.type] || 0) + 1), m), {}))
 const catCounts = computed(() => alerts.value.reduce((m, a) => ((m[a.category] = (m[a.category] || 0) + 1), m), {}))
 const filtered = computed(() => {
   const k = f.q.trim().toLowerCase()
   return alerts.value.filter((a) => (!f.category || a.category === f.category) && (!f.type || a.type === f.type) &&
-    (!f.severity || a.severity === f.severity) && (!f.status || statusOf(a.alertId) === f.status) &&
+    (!f.severity || a.severity === f.severity) && (f.status === 'all' || (f.status === 'active' ? isActive(a) : statusOf(a.alertId) === f.status)) &&
     (!f.read || (f.read === 'read') === isRead(a)) && (!k || (a.alertId + ' ' + a.title + ' ' + a.detail).toLowerCase().includes(k)))
 })
-const { page, pageSize, rows, total } = usePaged(filtered)
+const { page, pageSize, rows, sorted, total } = usePaged(filtered)
+function download() {
+  exportCsv('alerts', sorted.value.map((a) => ({ 'Alert ID': a.alertId, Category: ALERT_CATEGORIES[a.category],
+    Type: ALERT_TYPES[a.type], Severity: SEVERITY[a.severity], 'Follow-up status': ALERT_STATUS[statusOf(a.alertId)],
+    Read: isRead(a) ? 'Read' : 'Unread', Title: a.title, Detail: a.detail, Time: fmtTime(a.at) })))
+}
 watch(() => route.query.alert, (id) => {
   if (!id) return
   const a = alerts.value.find((x) => x.alertId === id)

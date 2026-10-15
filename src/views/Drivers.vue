@@ -3,12 +3,13 @@
     <div class="card">
       <div class="toolbar">
         <el-input v-model="f.q" placeholder="Search name / phone / username" clearable :prefix-icon="'Search'" style="width: 270px" />
-        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 240px"><el-option v-for="c in state.companies" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 240px"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         <el-radio-group v-model="f.status">
           <el-radio-button value="">All</el-radio-button>
           <el-radio-button v-for="(l, v) in DRIVER_STATUS" :key="v" :value="v">{{ l }}<template v-if="v === 'pending'"> ({{ pendingCount }})</template></el-radio-button>
         </el-radio-group>
         <span class="spacer" />
+        <el-button @click="download">Export CSV</el-button>
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add driver</el-button>
       </div>
       <el-table @sort-change="onSort" :data="rows" stripe>
@@ -48,18 +49,24 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
+import { exportCsv } from '../store/csv'
 import { api } from '../store/api'
 import { usePaged } from '../composables/paged'
-import { state, save, nameOf, fmtDate, DRIVER_STATUS } from '../store/db'
+import { state, haulers, save, nameOf, fmtDate, DRIVER_STATUS } from '../store/db'
 import { driverFields, DEFAULTS, upsert } from '../store/forms'
 
+function download() {
+  exportCsv('drivers', sorted.value.map((d) => ({ Name: d.name, Hauler: nameOf('companies', d.companyId),
+    Phone: d.phone, Username: d.account, Registered: fmtDate(d.createdAt),
+    'Jobs (14 days)': jobs.value.get(d.id) || 0, Status: DRIVER_STATUS[d.status], Photos: photoCounts[d.id] || 0 })))
+}
 const TAG = { pending: 'warning', active: 'success', inactive: 'info' }
 const route = useRoute(), router = useRouter()
 const f = reactive({ q: route.query.q || '', company: route.query.company || '', status: route.query.status || '' })
 const pendingCount = computed(() => state.drivers.filter((d) => d.status === 'pending').length)
 const jobs = computed(() => {
   const m = new Map()
-  for (const p of state.pickups) m.set(p.driverId, (m.get(p.driverId) || 0) + 1)
+  for (const p of state.pickups) if (p.status === 'done' && p.endAt && Date.now() - new Date(p.endAt).getTime() <= 14 * 864e5) m.set(p.driverId, (m.get(p.driverId) || 0) + 1)
   return m
 })
 const filtered = computed(() => {

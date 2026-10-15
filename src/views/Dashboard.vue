@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <el-row :gutter="12">
-      <el-col v-for="s in stats" :key="s.label" :span="4">
+      <el-col v-for="s in stats" :key="s.label" :span="6">
         <div class="card kpi" @click="s.to && router.push(s.to)">
           <div class="icon" :style="{ background: s.color + '1a', color: s.color }"><el-icon :size="22"><component :is="s.icon" /></el-icon></div>
           <div>
@@ -11,6 +11,11 @@
           </div>
         </div>
       </el-col>
+    </el-row>
+
+    <el-row :gutter="12" class="row">
+      <el-col :span="12"><div class="card"><div class="card-head"><h3>Pump-outs per month</h3></div><Chart :option="monthlyPumpOption" :height="300" /></div></el-col>
+      <el-col :span="12"><div class="card"><div class="card-head"><h3>Collection status per month</h3></div><Chart :option="monthlyStatusOption" :height="300" @click="(e) => ['Delivered', 'Awaiting delivery'].includes(e.seriesName) && router.push('/pickups')" /></div></el-col>
     </el-row>
 
     <el-row :gutter="12" class="row">
@@ -39,7 +44,7 @@
             <el-button link type="primary" style="margin-left: auto" @click="router.push('/alerts')">View all →</el-button>
           </div>
           <div class="chips">
-            <el-check-tag :checked="!alertType" @change="alertType = ''">All {{ alerts.length }}</el-check-tag>
+            <el-check-tag :checked="!alertType" @change="alertType = ''">All {{ activeAlerts.length }}</el-check-tag>
             <template v-for="(l, t) in ALERT_TYPES" :key="t">
               <el-check-tag v-if="typeCount[t]" :checked="alertType === t" @change="alertType = alertType === t ? '' : t">{{ l }} {{ typeCount[t] }}</el-check-tag>
             </template>
@@ -100,8 +105,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Chart from '../components/Chart.vue'
 import AlertList from '../components/AlertList.vue'
-import { state, nameOf, isOverdue, overdueDays, nextService, fmtTime, fmtL } from '../store/db'
-import { alerts, ALERT_TYPES, SEVERITY } from '../store/alerts'
+import { state, haulers, nameOf, isOverdue, overdueDays, nextService, fmtTime, fmtL, traceForward } from '../store/db'
+import { activeAlerts, ALERT_TYPES, SEVERITY } from '../store/alerts'
 
 const router = useRouter()
 const DAY = 864e5
@@ -115,6 +120,36 @@ const day0 = new Date(); day0.setHours(0, 0, 0, 0)
 const days = Array.from({ length: 14 }, (_, i) => new Date(day0.getTime() - (13 - i) * DAY))
 const dayLabel = (d) => `${d.getDate()}/${d.getMonth() + 1}`
 const inLast = (s, n) => s && Date.now() - new Date(s).getTime() <= n * DAY
+const monthStarts = Array.from({ length: 12 }, (_, i) => new Date(day0.getFullYear(), day0.getMonth() - 11 + i, 1))
+const monthKey = (s) => { const d = new Date(s); return `${d.getFullYear()}-${d.getMonth()}` }
+const monthIndex = new Map(monthStarts.map((d, i) => [monthKey(d), i]))
+const monthLabels = monthStarts.map((d) => d.toLocaleString('en-AU', { month: 'short', year: 'numeric' }))
+const monthly = computed(() => {
+  const jobs = Array(12).fill(0), volume = Array(12).fill(0)
+  const delivered = Array(12).fill(0), awaiting = Array(12).fill(0), progress = Array(12).fill(0)
+  for (const p of state.pickups) {
+    const i = monthIndex.get(monthKey(p.status === 'done' ? p.endAt : p.startAt))
+    if (i == null) continue
+    if (p.status === 'ongoing') { progress[i]++; continue }
+    if (p.status !== 'done') continue
+    jobs[i]++; volume[i] += (p.volume || 0) / 1000
+    if (traceForward(p).finished) delivered[i]++
+    else awaiting[i]++
+  }
+  return { jobs, volume: volume.map((v) => +v.toFixed(1)), delivered, awaiting, progress }
+})
+const monthlyPumpOption = computed(() => ({
+  tooltip: { trigger: 'axis', confine: true }, legend: { bottom: 0 }, grid: { left: 50, right: 55, bottom: 50 },
+  xAxis: { type: 'category', data: monthLabels }, yAxis: [{ type: 'value', name: 'Jobs', minInterval: 1 }, { type: 'value', name: 'kL', splitLine: { show: false } }],
+  series: [{ name: 'Pump-outs', type: 'bar', data: monthly.value.jobs, itemStyle: { color: '#2f6fd6' } },
+    { name: 'Volume (kL)', type: 'line', yAxisIndex: 1, data: monthly.value.volume, itemStyle: { color: '#18a58a' } }]
+}))
+const monthlyStatusOption = computed(() => ({
+  tooltip: { trigger: 'axis', confine: true }, legend: { bottom: 0 }, grid: { left: 50, right: 20, bottom: 50 },
+  xAxis: { type: 'category', data: monthLabels }, yAxis: { type: 'value', minInterval: 1 },
+  series: [['Delivered', monthly.value.delivered, '#18a58a'], ['Awaiting delivery', monthly.value.awaiting, '#f0a020'], ['In progress', monthly.value.progress, '#2f6fd6']]
+    .map(([name, data, color]) => ({ name, type: 'bar', stack: 'collection', data, itemStyle: { color } }))
+}))
 const done14 = computed(() => state.pickups.filter((p) => p.status === 'done' && inLast(p.endAt, 14)))
 
 // ---------- KPIs ----------
@@ -126,13 +161,15 @@ const stats = computed(() => {
   const p7prev = state.pickups.filter((p) => p.status === 'done' && inLast(p.endAt, 14) && !inLast(p.endAt, 7))
   const delta = p7prev.length ? Math.round(((p7.length - p7prev.length) / p7prev.length) * 100) : 0
   const unl7 = state.unloads.filter((u) => inLast(u.at, 7))
-  const crit = alerts.value.filter((a) => a.severity === 'critical').length
+  const crit = activeAlerts.value.filter((a) => a.severity === 'critical').length
   return [
     { label: 'Active devices', value: active.length.toLocaleString(), sub: `${state.locations.length} locations`, icon: 'Box', color: '#2f6fd6', to: { path: '/devices', query: { status: 'Active' } } },
+    { label: 'Inactive devices', value: state.devices.filter((d) => d.status === 'Inactive').length, sub: 'not in service', icon: 'CircleClose', color: '#8a94a6', to: { path: '/devices', query: { status: 'Inactive' } } },
+    { label: 'No frequency', value: active.filter((d) => !Number(d.freqWeeks)).length, sub: 'active without schedule', icon: 'Calendar', color: '#f0a020', to: { path: '/devices', query: { status: 'Active', freq: 'none' } } },
     { label: 'Overdue devices', value: overdue.length, sub: `${((overdue.length / (active.length || 1)) * 100).toFixed(1)}% of active`, icon: 'AlarmClock', color: '#e2574c', numColor: '#d93025', to: { path: '/devices', query: { overdue: '1' } } },
     { label: 'Pump-outs (7 days)', value: p7.length, sub: `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)}% vs prior week`, icon: 'Odometer', color: '#18a58a', to: '/pickups' },
     { label: 'Volume (7 days)', value: Math.round(sumVol(p7) / 1000) + ' kL', sub: `${unl7.length} unloads`, icon: 'Histogram', color: '#3fb1e3', to: '/unloads' },
-    { label: 'Open alerts', value: alerts.value.length, sub: `${crit} critical`, icon: 'Bell', color: '#f0a020', numColor: crit ? '#d93025' : undefined, to: '/alerts' },
+    { label: 'Open alerts', value: activeAlerts.value.length, sub: `${crit} critical`, icon: 'Bell', color: '#f0a020', numColor: crit ? '#d93025' : undefined, to: '/alerts' },
     { label: 'Pending drivers', value: state.drivers.filter((d) => d.status === 'pending').length, sub: `${state.drivers.filter((d) => d.status === 'active').length} active drivers`, icon: 'User', color: '#8e5bd8', to: { path: '/drivers', query: { status: 'pending' } } }
   ]
 })
@@ -140,7 +177,7 @@ const stats = computed(() => {
 // ---------- 14-day trend ----------
 const trendOption = computed(() => {
   const idxOf = (s) => Math.floor((new Date(s).getTime() - days[0].getTime()) / DAY)
-  const companies = state.companies.filter((c) => done14.value.some((p) => p.companyId === c.id))
+  const companies = haulers.value.filter((c) => done14.value.some((p) => p.companyId === c.id))
   const vol = Array(14).fill(0)
   const series = companies.map((c, i) => {
     const data = Array(14).fill(0)
@@ -285,14 +322,15 @@ const flagOption = computed(() => {
 
 // ---------- alerts / recent ----------
 const alertType = ref('')
-const typeCount = computed(() => alerts.value.reduce((m, a) => ((m[a.type] = (m[a.type] || 0) + 1), m), {}))
-const sevCount = computed(() => alerts.value.reduce((m, a) => ((m[a.severity] = (m[a.severity] || 0) + 1), m), {}))
-const shownAlerts = computed(() => alerts.value.filter((a) => !alertType.value || a.type === alertType.value).slice(0, 40))
+const typeCount = computed(() => activeAlerts.value.reduce((m, a) => ((m[a.type] = (m[a.type] || 0) + 1), m), {}))
+const sevCount = computed(() => activeAlerts.value.reduce((m, a) => ((m[a.severity] = (m[a.severity] || 0) + 1), m), {}))
+const shownAlerts = computed(() => activeAlerts.value.filter((a) => !alertType.value || a.type === alertType.value).slice(0, 40))
 const recent = computed(() => [...state.pickups].sort((a, b) => (b.endAt || b.startAt).localeCompare(a.endAt || a.startAt)).slice(0, 7))
 </script>
 <style scoped>
 .row { margin-top: 12px; }
 .kpi { display: flex; gap: 12px; align-items: center; cursor: pointer; transition: box-shadow .15s; height: 100%; box-sizing: border-box; }
+.kpi { margin-bottom: 12px; min-height: 96px; }
 .kpi:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); }
 .kpi .icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .kpi .label { font-size: 12px; white-space: nowrap; }

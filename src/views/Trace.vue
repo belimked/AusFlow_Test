@@ -30,6 +30,8 @@
           <el-select-v2 v-model="unloadId" :options="unloadOptions" filterable clearable placeholder="Select unload ID, plate or facility" style="width: 520px" />
         </div>
         <template v-if="unload">
+          <OpDrawer :record="detailOpen ? unload : null" kind="unload" @close="detailOpen = false" />
+          <el-button style="margin-bottom: 10px" @click="detailOpen = true">Unload details · Warnings &amp; Notes</el-button>
           <el-alert type="success" :closable="false" style="margin-bottom: 12px"
             :title="`Unload ${unload.id}: ${plateOf(unload.vehicleId)} unloaded ${fmtL(unload.volume)} at ${nameOf('facilities', unload.facilityId)} on ${fmtTime(unload.at)}`"
             :description="`Sources: ${sources.length} pump-outs from ${new Set(sources.map((s) => s.pickup.deviceId)).size} devices, total ${fmtL(sources.reduce((s, x) => s + x.pickup.volume, 0))}`" />
@@ -51,7 +53,7 @@
             <el-table-column label="Pump-out ID" width="120"><template #default="{ row }"><span class="link" @click="router.push('/pickups/' + row.pickup.id)">{{ row.pickup.id }}</span></template></el-table-column>
             <el-table-column label="Device" width="100"><template #default="{ row }"><span class="link" @click="router.push('/devices/' + row.pickup.deviceId)">{{ row.pickup.deviceId }}</span></template></el-table-column>
             <el-table-column label="Location" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ nameOf('locations', row.pickup.locationId) }}</template></el-table-column>
-            <el-table-column label="Waste type" prop="pickup.waste" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ row.pickup.waste || '—' }}</template></el-table-column>
+            <el-table-column label="Waste type" prop="pickup.waste" min-width="150" show-overflow-tooltip><template #default="{ row }"><WasteType :text="row.pickup.waste" /></template></el-table-column>
             <el-table-column label="Volume" width="110" align="right"><template #default="{ row }">{{ fmtL(row.pickup.volume) }}</template></el-table-column>
             <el-table-column label="Pump-out time" width="160"><template #default="{ row }">{{ fmtTime(row.pickup.endAt) }}</template></el-table-column>
             <el-table-column label="Vehicles" min-width="160"><template #default="{ row }">{{ row.path.map(plateOf).join(' → ') }}</template></el-table-column>
@@ -67,13 +69,16 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MapView from '../components/MapView.vue'
+import WasteType from '../components/WasteType.vue'
 import TraceSteps from '../components/TraceSteps.vue'
+import OpDrawer from '../components/OpDrawer.vue'
 import { state, idx, nameOf, plateOf, traceForward, traceBackward, fmtTime, fmtL } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const mode = ref(route.query.unload ? 'backward' : 'forward')
 const pickupId = ref(route.query.pickup || '')
 const unloadId = ref(route.query.unload || '')
+const detailOpen = ref(!!route.query.unload)
 
 const pickupOptions = computed(() => state.pickups.filter((p) => p.status === 'done').map((p) => ({
   value: p.id, label: `${p.id} · ${p.deviceId} · ${nameOf('locations', p.locationId)} · ${fmtTime(p.endAt)}`

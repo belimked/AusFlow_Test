@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import { wasteCodeOf } from './wasteCodes'
 import { state, idx, nameOf, plateOf, isOverdue, overdueDays, overdueText, nextService, vehicleLoads, vehicleCycles, traceBackward, fmtL, fmtM, save, nextId, CURRENT_USER } from './db'
 
 export const SUSPICIOUS_RATIO = 1.2
@@ -14,7 +15,7 @@ export const ALERT_TYPES = {
   location: 'Location mismatch',
   capacity: 'Over capacity',
   nolocation: 'No location',
-  vehicleFull: 'Vehicle near full',
+  vehicleFull: 'Vehicle near full', reportedIssue: 'Reported issue',
   haulerBacklog: 'Hauler backlog',
   pendingDriver: 'Driver pending approval',
   vehicleOverload: 'Vehicle overload', unloadOverTank: 'Unload over tank capacity',
@@ -22,7 +23,7 @@ export const ALERT_TYPES = {
 }
 export const ALERT_CATEGORIES = { device: 'Device', vehicle: 'Hauler & vehicle', driver: 'Driver', suspicious: 'Suspicious activity' }
 const TYPE_CATEGORY = {
-  overdue: 'device', capacity: 'device', vehicleFull: 'vehicle', haulerBacklog: 'vehicle',
+  overdue: 'device', capacity: 'device', reportedIssue: 'device', vehicleFull: 'vehicle', haulerBacklog: 'vehicle',
   longJob: 'driver', location: 'driver', nolocation: 'driver', pendingDriver: 'driver',
   vehicleOverload: 'suspicious', unloadOverTank: 'suspicious', devicePumpedOver: 'suspicious',
   unloadDelayed: 'suspicious', wasteMismatch: 'suspicious'
@@ -30,7 +31,9 @@ const TYPE_CATEGORY = {
 export const SEVERITY = { critical: 'Critical', warning: 'Warning', info: 'Info' }
 const BACKLOG_WARN = 3
 const BACKLOG_CRITICAL = 10
-export const ALERT_STATUS = { open: 'Open', progress: 'In progress', resolved: 'Resolved' }
+export const ALERT_STATUS = { new: 'New', acknowledged: 'Acknowledged', cleared: 'Cleared', dismissed: 'Dismissed' }
+const LEGACY_STATUS = { open: 'new', progress: 'acknowledged', resolved: 'cleared' }
+export const isActive = (a) => ['new', 'acknowledged'].includes(statusOf(typeof a === 'string' ? a : a.alertId))
 
 // Alerts are derived from data, so the ID is a hash of the alert's business key: same condition -> same ID for everyone.
 export function alertIdOf(key) {
@@ -64,10 +67,17 @@ export const alerts = computed(() => {
   const loc = (id) => nameOf('locations', id)
   const push = (key, type, a) => out.push({ id: alertIdOf(key), alertId: alertIdOf(key), type, category: TYPE_CATEGORY[type], ...a })
 
+  for (const issue of state.reportedIssues) {
+    if (issue.status !== 'open') continue
+    const d = idx.devices.value.get(issue.deviceId)
+    push('ri:' + issue.id, 'reportedIssue', { severity: 'warning', title: `${d?.ref || issue.deviceId}: reported issue`,
+      detail: issue.description || issue.category, at: issue.at, to: { path: '/devices/' + issue.deviceId, query: { tab: 'issues' } },
+      refs: { deviceId: issue.deviceId, locationId: d?.locationId }, points: devicePoint(d) })
+  }
   const overdueByCompany = new Map()
   for (const d of state.devices) {
     if (!isOverdue(d)) continue
-    if (d.companyId) overdueByCompany.set(d.companyId, [...(overdueByCompany.get(d.companyId) || []), d])
+    if (d.companyId && idx.companies.value.get(d.companyId)?.types?.includes('hauler')) overdueByCompany.set(d.companyId, [...(overdueByCompany.get(d.companyId) || []), d])
     const days = overdueDays(d)
     push('od:' + d.id + ':' + (d.lastService || ''), 'overdue', {
       severity: days >= 28 ? 'critical' : 'warning',
@@ -186,10 +196,14 @@ export const alerts = computed(() => {
       detail: `${f?.name || u.facilityId} · ${nameOf('companies', u.companyId)}`, at: u.at, to: { path: '/trace', query: { unload: u.id } }, refs, points
     })
     if (!u.waste?.trim()) continue
-    const mismatch = sources(traceBackward(u.vehicleId, new Date(u.at).getTime())).filter((p) => p.waste?.trim() && p.waste.trim().toLowerCase() !== u.waste.trim().toLowerCase())
+    const mismatch = sources(traceBackward(u.vehicleId, new Date(u.at).getTime())).filter((p) => {
+      if (!p.waste?.trim()) return false
+      const a = wasteCodeOf(p.waste), b = wasteCodeOf(u.waste)
+      return a && b ? a !== b : p.waste.trim().toLowerCase() !== u.waste.trim().toLowerCase()
+    })
     if (mismatch.length) push('wm:' + u.id, 'wasteMismatch', {
       severity: 'critical', title: `Unload ${u.id} waste type differs from source pump-outs`,
-      detail: `Declared ${u.waste.trim()}; sources: ${mismatch.map((p) => `${p.waste.trim()} (${p.id})`).join(', ')}`,
+      detail: `Declared ${u.waste.trim()} (${wasteCodeOf(u.waste) || 'no code'}); sources: ${mismatch.map((p) => `${p.waste.trim()} (${wasteCodeOf(p.waste) || 'no code'}, ${p.id})`).join(', ')}`,
       at: u.at, to: { path: '/trace', query: { unload: u.id } },
       refs: { ...refs, pickupIds: mismatch.map((p) => p.id) }, points
     })
@@ -207,7 +221,13 @@ export const alerts = computed(() => {
 
 const reads = () => state.alertReads
 export const isRead = (a) => !!reads()[a.id]
-export const unreadCount = computed(() => alerts.value.filter((a) => !isRead(a)).length)
+export const activeAlerts = computed(() => alerts.value.filter(isActive))
+export const unreadCount = computed(() => activeAlerts.value.filter((a) => !isRead(a)).length)
+export function warningsFor(kind, id) {
+  return alerts.value.filter((a) => kind === 'pickup'
+    ? a.refs?.pickupId === id || a.refs?.pickupIds?.includes(id)
+    : kind === 'unload' && a.refs?.unloadId === id).map((a) => ({ ...a, status: statusOf(a.alertId) }))
+}
 export function markRead(list) {
   for (const a of list) reads()[a.id] = true
   save()
@@ -219,7 +239,7 @@ const statusMap = computed(() => {
   for (const n of state.alertNotes) if (n.kind === 'status' && !m.has(n.alertId)) m.set(n.alertId, n.status)
   return m
 })
-export const statusOf = (alertId) => statusMap.value.get(alertId) || 'open'
+export const statusOf = (alertId) => LEGACY_STATUS[statusMap.value.get(alertId)] || statusMap.value.get(alertId) || 'new'
 export const notesOf = (alertId) => state.alertNotes.filter((n) => n.alertId === alertId)
 
 function addEntry(alertId, entry) {
@@ -227,7 +247,12 @@ function addEntry(alertId, entry) {
   save()
 }
 export const addAlertNote = (alertId, text) => addEntry(alertId, { kind: 'note', text })
-export const setAlertStatus = (alertId, status) => addEntry(alertId, { kind: 'status', status })
+export function setAlertStatus(alertId, status, reason = '') {
+  if (['cleared', 'dismissed'].includes(status) && !reason.trim()) throw new Error('Reason required')
+  // A reason is saved as its own note next to the status entry.
+  if (reason.trim()) addEntry(alertId, { kind: 'note', text: reason.trim() })
+  addEntry(alertId, { kind: 'status', status })
+}
 
 // ---------- detail drawer ----------
 export const alertDrawer = reactive({ open: false, alert: null })

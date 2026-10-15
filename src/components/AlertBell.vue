@@ -9,14 +9,14 @@
       <b>Alerts</b>
       <el-radio-group v-model="filter" size="small">
         <el-radio-button value="unread">Unread ({{ unreadCount }})</el-radio-button>
-        <el-radio-button value="all">All ({{ alerts.length }})</el-radio-button>
+        <el-radio-button value="all">All ({{ activeAlerts.length }})</el-radio-button>
       </el-radio-group>
     </div>
     <div style="max-height: 420px; overflow-y: auto">
       <AlertList :items="shown.slice(0, 30)" @navigate="open = false" />
     </div>
     <div class="foot">
-      <el-button link type="primary" :disabled="!unreadCount" @click="markRead(alerts)">Mark all as read</el-button>
+      <el-button link type="primary" :disabled="!unreadCount" @click="markRead(activeAlerts)">Mark all as read</el-button>
       <el-button link type="primary" @click="go">View all alerts →</el-button>
     </div>
   </el-popover>
@@ -25,12 +25,12 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AlertList from './AlertList.vue'
-import { alerts, unreadCount, isRead, markRead } from '../store/alerts'
+import { activeAlerts, unreadCount, isRead, markRead } from '../store/alerts'
 
 const router = useRouter()
 const open = ref(false)
 const filter = ref('unread')
-const shown = computed(() => (filter.value === 'all' ? alerts.value : alerts.value.filter((a) => !isRead(a))))
+const shown = computed(() => (filter.value === 'all' ? activeAlerts.value : activeAlerts.value.filter((a) => !isRead(a))))
 function go() { open.value = false; router.push('/alerts') }
 </script>
 <style scoped>

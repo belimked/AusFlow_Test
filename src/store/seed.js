@@ -3,7 +3,7 @@ import { rowToDevice, rowToLocation, locationKey } from './csv'
 import { distanceM, nextService } from './db'
 
 const MIN = 6e4, HOUR = 36e5, DAY = 864e5
-const HISTORY_DAYS = 14
+const HISTORY_DAYS = 180
 
 function mulberry32(a) {
   return () => {
@@ -45,7 +45,7 @@ export function buildSeed() {
   const iso = (t) => new Date(t).toISOString()
 
   const companies = COMPANIES.map(([name, abn, contact, phone, address]) => ({
-    id: id('CO'), name, abn, contact, phone, address, status: 'active'
+    id: id('CO'), name, abn, contact, phone, address, status: 'active', types: '["hauler"]'
   }))
   const companyByName = new Map(companies.map((c) => [c.name, c]))
 
@@ -54,7 +54,12 @@ export function buildSeed() {
     const key = locationKey(r)
     let loc = locByKey.get(key)
     if (!loc) {
-      loc = { id: id('LO'), ...rowToLocation(r), lat: null, lng: null }
+      const number = locations.length
+      const text = `${r['Location Names'] || ''} ${r['Address Line 1'] || ''}`
+      const custodianCategory = number % 20 === 0 ? null
+        : /State School|State High|College|TAFE|Hospital|Police|Queensland Health|Department/i.test(text) ? 'government'
+          : /Council|Library|Park|Community Centre|Aquatic/i.test(text) ? 'council' : 'private'
+      loc = { id: id('LO'), ...rowToLocation(r), custodianCategory, lat: null, lng: null }
       locByKey.set(key, loc)
       locations.push(loc)
     }
@@ -65,8 +70,14 @@ export function buildSeed() {
     devices.push(device)
   }
 
+  // Deterministic company roles and location relationships.
+  for (let i = 0; i < 10; i++) companies.push({ id: id('CO'), name: `${['Bayside', 'Riverbank', 'Moreton', 'Southside', 'Cedar', 'Harbour', 'Acacia', 'Greenfield', 'Northgate', 'Sunshine'][i]} Property Group Pty Ltd`, status: 'active', types: '["owner"]' })
+  for (let i = 0; i < 15; i++) companies.push({ id: id('CO'), name: `${locations[i]?.name || 'Brisbane'} Operations ${i + 1} Pty Ltd`, status: 'active', types: '["occupier"]' })
+  companies.push({ id: id('CO'), name: 'Urban Utilities', status: 'active', types: '["authority"]' })
+  locations.forEach((l, i) => { l.ownerId = i % 5 < 3 ? companies[6 + i % 10].id : null; l.occupierId = i % 5 < 2 ? companies[16 + i % 15].id : null })
+
   const drivers = [], vehicles = [], facilities = []
-  companies.forEach((c, ci) => {
+  companies.slice(0, 6).forEach((c, ci) => {
     for (let i = 0; i < 4; i++) {
       const first = pick(FIRST), last = pick(LAST)
       const status = i === 3 && ci % 2 === 0 ? 'pending' : i === 3 && ci === 5 ? 'inactive' : 'active'
@@ -99,7 +110,7 @@ export function buildSeed() {
   }
   const today0 = new Date(now); today0.setHours(0, 0, 0, 0)
 
-  for (const c of companies) {
+  for (const c of companies.slice(0, 6)) {
     const cDrivers = drivers.filter((d) => d.companyId === c.id && d.status === 'active')
     const cVehicles = vehicles.filter((v) => v.companyId === c.id && v.status === 'active')
     const cDevices = devices.filter((d) => d.companyId === c.id && d.status === 'Active')
@@ -239,6 +250,7 @@ export function buildSeed() {
   unloads.sort((a, b) => a.at.localeCompare(b.at)).forEach((x) => (x.id = id('UL')))
   pickups.reverse(); transfers.reverse(); unloads.reverse()
   // Whole-load provenance, calculated before assigning the seed to reactive state.
+  const recentCutoff = iso(now - 14 * DAY)
   const sources = (vehicleId, end, depth = 0) => {
     if (depth > 10) return []
     const previous = [
@@ -252,13 +264,24 @@ export function buildSeed() {
     ]
   }
   for (const u of unloads) {
-    if (u.waste) continue
+    if (u.waste || u.at < recentCutoff) continue
     const counts = new Map()
     for (const p of sources(u.vehicleId, u.at)) counts.set(p.waste, (counts.get(p.waste) || 0) + 1)
     u.waste = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || ''
   }
 
+  // Intentional duplicate and app allocations for tag audit demonstrations.
+  const tagged = devices.filter((d) => (d.tags || d.qr || '').trim())
+  if (tagged.length >= 2) {
+    const shared = (tagged[0].tags || tagged[0].qr).split(/\s+/)[0]
+    tagged[1].tags = shared
+    tagged[1].qr = shared
+  }
   const changeLogs = []
+  tagged.slice(0, 4).forEach((d, i) => {
+    changeLogs.push({ id: '', deviceId: d.id, entityType: 'device', entityId: d.id, field: 'Tag ID',
+      oldValue: '', newValue: d.tags || d.qr, source: 'App', user: 'inspector01 (Authority App)', at: iso(now - (i + 1) * DAY) })
+  })
   const SAMPLE_CHANGES = [
     ['capacity', 'Capacity (L)', (d) => d.capacity, (d) => d.capacity + 500, 'Web', 'admin (Authority)'],
     ['freqWeeks', 'Service frequency (weeks)', (d) => d.freqWeeks, () => 8, 'Web', 'admin (Authority)'],
@@ -270,13 +293,21 @@ export function buildSeed() {
     const before = oldV(d), after = newV(d)
     if (field === 'lat') d.lat = +after
     else d[field] = after
-    changeLogs.push({ id: '', deviceId: d.id, field: label, oldValue: String(before ?? ''), newValue: String(after), user, source, at: iso(now - (i + 1) * 0.8 * DAY - between(0, 8) * HOUR) })
+    changeLogs.push({ id: '', deviceId: d.id, entityType: 'device', entityId: d.id, field: label, oldValue: String(before ?? ''), newValue: String(after), user, source, at: iso(now - (i + 1) * 0.8 * DAY - between(0, 8) * HOUR) })
   })
   changeLogs.sort((a, b) => a.at.localeCompare(b.at)).forEach((x) => (x.id = id('CL')))
   changeLogs.reverse()
 
+  const inspections = Array.from({ length: 30 }, (_, i) => ({ id: id('IN'), deviceId: devices[(i * 13) % devices.length].id,
+    inspector: ['inspector01', 'inspector02', 'inspector03'][i % 3], at: iso(now - (i * 6 + 1) * DAY),
+    result: i % 5 === 0 ? (i % 2 ? 'follow_up' : 'non_compliant') : 'compliant',
+    comments: i % 5 === 0 ? 'Follow-up recommended.' : 'Equipment checked and compliant.', nextInspection: null, source: 'App' })).reverse()
+  const categories = ['baffle_damaged', 'no_washdown_tap', 'premises_closed', 'no_access', 'qr_missing', 'other']
+  const reportedIssues = Array.from({ length: 10 }, (_, i) => ({ id: id('RI'), deviceId: devices[(i * 17) % devices.length].id,
+    category: categories[i % categories.length], description: ['Baffle needs repair.', 'Tap unavailable on site.', 'Access blocked at gate.', 'Please inspect on next visit.'][i % 4],
+    reportedBy: drivers[i % drivers.length].name, at: iso(now - (i * 5 + 1) * DAY), status: i % 2 ? 'resolved' : 'open', source: 'App' })).reverse()
   return {
-    seq, locations, devices, companies, drivers, vehicles, facilities, pickups, transfers, unloads,
+    inspections, reportedIssues, seq, locations, devices, companies, drivers, vehicles, facilities, pickups, transfers, unloads,
     changeLogs, importLogs: []
   }
 }

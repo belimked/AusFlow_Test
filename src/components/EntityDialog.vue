@@ -5,6 +5,7 @@
         <el-select v-if="f.type === 'select'" v-model="form[f.key]" filterable :disabled="f.disabled" style="width: 100%">
           <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
         </el-select>
+        <el-select v-else-if="f.type === 'multiselect'" v-model="form[f.key]" multiple style="width: 100%"><el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" /></el-select>
         <el-radio-group v-else-if="f.type === 'radio'" v-model="form[f.key]">
           <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
         </el-radio-group>
@@ -47,6 +48,9 @@ watch(visible, (v) => {
   if (!v) return
   for (const k of Object.keys(form)) delete form[k]
   Object.assign(form, props.defaults || {}, props.record ? JSON.parse(JSON.stringify(props.record)) : {})
+  for (const f of props.fields.filter((f) => f.type === 'multiselect')) {
+    try { form[f.key] = typeof form[f.key] === 'string' ? JSON.parse(form[f.key]) : (form[f.key] || []) } catch { form[f.key] = [] }
+  }
 })
 
 function selectAddress(key, item) {

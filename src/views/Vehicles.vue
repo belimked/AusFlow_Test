@@ -3,10 +3,11 @@
     <div class="card">
       <div class="toolbar">
         <el-input v-model="f.q" placeholder="Search plate / QR code" clearable :prefix-icon="'Search'" style="width: 230px" />
-        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 240px"><el-option v-for="c in state.companies" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 240px"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         <el-select v-model="f.type" placeholder="Truck type" clearable style="width: 135px"><el-option v-for="(l, v) in VEHICLE_TYPE" :key="v" :label="l" :value="v" /></el-select>
         <el-select v-model="f.status" placeholder="Status" clearable style="width: 110px"><el-option v-for="(l, v) in ENTITY_STATUS" :key="v" :label="l" :value="v" /></el-select>
         <span class="spacer" />
+        <el-button @click="download">Export CSV</el-button>
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add vehicle</el-button>
       </div>
       <el-table @sort-change="onSort" :data="rows" stripe>
@@ -35,12 +36,18 @@ import { ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
+import { exportCsv } from '../store/csv'
 import { usePaged } from '../composables/paged'
-import { state, save, nameOf, vehicleLoads, fmtL, ENTITY_STATUS, VEHICLE_TYPE } from '../store/db'
+import { state, haulers, save, nameOf, vehicleLoads, fmtL, ENTITY_STATUS, VEHICLE_TYPE } from '../store/db'
 import { vehicleFields, DEFAULTS, upsert } from '../store/forms'
 
 const route = useRoute(), router = useRouter()
 const f = reactive({ q: '', company: route.query.company || '', type: '', status: '' })
+function download() {
+  exportCsv('vehicles', sorted.value.map((v) => ({ Plate: v.plate, Hauler: nameOf('companies', v.companyId),
+    'Truck type': VEHICLE_TYPE[v.type], 'Tank capacity': fmtL(v.tank), 'Current load': fmtL(vehicleLoads.value.get(v.id) || 0),
+    'Vehicle QR code': v.qr, Status: ENTITY_STATUS[v.status] })))
+}
 const pct = (v) => Math.min(100, Math.round(((vehicleLoads.value.get(v.id) || 0) / v.tank) * 100))
 const filtered = computed(() => {
   const k = f.q.trim().toLowerCase()

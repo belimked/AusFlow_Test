@@ -9,6 +9,7 @@
         <el-select v-model="status" placeholder="Status" clearable style="width: 110px">
           <el-option v-for="(l, v) in ENTITY_STATUS" :key="v" :label="l" :value="v" />
         </el-select>
+        <el-select v-model="custodian" placeholder="Custodian" clearable style="width: 170px"><el-option label="(Unspecified)" value="none" /><el-option v-for="(label, key) in CUSTODIAN" :key="key" :label="label" :value="key" /></el-select>
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
         <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add Location</el-button>
@@ -19,6 +20,9 @@
         </el-table-column>
         <el-table-column label="Address" prop="address1" sortable="custom" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ row.address1 }}</template></el-table-column>
         <el-table-column label="Suburb" prop="suburb" sortable="custom" width="150" />
+        <el-table-column label="Owner" prop="owner" sortable="custom" min-width="160"><template #default="{ row }">{{ nameOf('companies', row.ownerId) }}</template></el-table-column>
+        <el-table-column label="Occupier" prop="occupier" sortable="custom" min-width="160"><template #default="{ row }">{{ nameOf('companies', row.occupierId) }}</template></el-table-column>
+        <el-table-column label="Custodian" prop="custodianCategory" sortable="custom" width="140"><template #default="{ row }">{{ CUSTODIAN[row.custodianCategory] || '(Unspecified)' }}</template></el-table-column>
         <el-table-column label="Agreement No." prop="agreementNo" sortable="custom" width="140" />
         <el-table-column label="Devices" prop="deviceCount" sortable="custom" width="90" align="right"><template #default="{ row }">{{ stats.get(row.id)?.n || 0 }}</template></el-table-column>
         <el-table-column label="Overdue" prop="overdueCount" sortable="custom" width="90" align="right"><template #default="{ row }"><span :class="{ red: stats.get(row.id)?.od }">{{ stats.get(row.id)?.od || 0 }}</span></template></el-table-column>
@@ -44,10 +48,10 @@ import Pager from '../components/Pager.vue'
 import LocationDialog from '../components/LocationDialog.vue'
 import { usePaged } from '../composables/paged'
 import { exportCsv } from '../store/csv'
-import { state, save, isOverdue, ENTITY_STATUS } from '../store/db'
+import { state, save, nameOf, isOverdue, ENTITY_STATUS, CUSTODIAN } from '../store/db'
 
 const router = useRouter()
-const q = ref(''), suburb = ref(''), status = ref('')
+const q = ref(''), suburb = ref(''), status = ref(''), custodian = ref('')
 const suburbs = computed(() => [...new Set(state.locations.map((l) => l.suburb).filter(Boolean))].sort())
 const stats = computed(() => {
   const m = new Map()
@@ -62,14 +66,16 @@ const filtered = computed(() => {
   const k = q.value.trim().toLowerCase()
   return state.locations.filter((l) =>
     (!k || [l.name, l.address1, l.agreementNo].some((x) => (x || '').toLowerCase().includes(k))) &&
-    (!suburb.value || l.suburb === suburb.value) && (!status.value || l.status === status.value))
+    (!suburb.value || l.suburb === suburb.value) && (!status.value || l.status === status.value) &&
+    (!custodian.value || (custodian.value === 'none' ? !l.custodianCategory : l.custodianCategory === custodian.value)))
 })
 const { page, pageSize, rows, sorted, onSort, total } = usePaged(filtered, 20, {
+  owner: (l) => nameOf('companies', l.ownerId), occupier: (l) => nameOf('companies', l.occupierId),
   deviceCount: (l) => stats.value.get(l.id)?.n || 0, overdueCount: (l) => stats.value.get(l.id)?.od || 0
 })
 function download() {
-  exportCsv('locations', sorted.value.map((l) => ({ 'Location name': l.name, Address: l.address1, Suburb: l.suburb,
-    'Agreement No.': l.agreementNo, Devices: stats.value.get(l.id)?.n || 0, Overdue: stats.value.get(l.id)?.od || 0,
+  exportCsv('locations', sorted.value.map((l) => ({ 'Location name': l.name, Address: l.address1, Suburb: l.suburb, Owner: nameOf('companies', l.ownerId), Occupier: nameOf('companies', l.occupierId),
+    'Agreement No.': l.agreementNo, Custodian: CUSTODIAN[l.custodianCategory] || '(Unspecified)', Devices: stats.value.get(l.id)?.n || 0, Overdue: stats.value.get(l.id)?.od || 0,
     Coordinates: l.lat != null && l.lng != null ? 'Set' : 'None', Status: ENTITY_STATUS[l.status] })))
 }
 

@@ -18,7 +18,7 @@
         <el-col :span="12"><el-form-item label="Approval category"><el-input v-model="form.approvalCategory" /></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Risk rating"><el-select v-model="form.risk" clearable style="width: 100%"><el-option v-for="r in ['0','1','2','3','4','5','6','7']" :key="r" :value="r" /></el-select></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Responsible hauler">
-          <el-select v-model="form.companyId" clearable filterable style="width: 100%"><el-option v-for="c in state.companies" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+          <el-select v-model="form.companyId" clearable filterable style="width: 100%"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         </el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Status">
           <el-radio-group v-model="form.status"><el-radio v-for="(l, v) in DEVICE_STATUS" :key="v" :value="v">{{ l }}</el-radio></el-radio-group>
@@ -44,7 +44,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
-import { state, idx, updateDevice, createDevice, DEVICE_STATUS } from '../store/db'
+import { state, haulers, idx, updateDevice, createDevice, DEVICE_STATUS } from '../store/db'
 
 const visible = defineModel({ type: Boolean })
 const props = defineProps({ record: Object, defaults: Object })

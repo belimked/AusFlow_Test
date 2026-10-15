@@ -84,6 +84,8 @@ export function rowToLocation(r) {
   return {
     name: (r['Location Names'] || r['Address Line 1'] || '').trim(),
     agreementNo: (r['Agreement Numbers'] || '').trim(),
+    // WasteID does not supply this manually maintained location field.
+    custodianCategory: null,
     address1: (r['Address Line 1'] || '').trim(),
     address2: (r['Address Line 2'] || '').trim(),
     suburb: (r['Suburb'] || '').trim().toUpperCase(),

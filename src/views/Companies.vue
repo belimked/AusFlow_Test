@@ -1,15 +1,18 @@
 <template>
   <div class="page">
+    <h2>{{ isHaulerView ? 'Haulers' : 'Companies' }}</h2>
     <div class="card">
       <div class="toolbar">
-        <el-input v-model="q" placeholder="Search hauler / ABN / contact" clearable :prefix-icon="'Search'" style="width: 290px" />
+        <el-input v-model="q" placeholder="Search company / ABN / contact" clearable :prefix-icon="'Search'" style="width: 290px" />
+        <el-select v-model="typeFilter" placeholder="Type" style="width: 165px"><el-option label="All companies" value="all" /><el-option v-for="(label, key) in COMPANY_TYPES" :key="key" :value="key" :label="label" /></el-select>
         <el-select v-model="status" placeholder="Status" clearable style="width: 110px"><el-option v-for="(l, v) in ENTITY_STATUS" :key="v" :label="l" :value="v" /></el-select>
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
-        <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add hauler</el-button>
+        <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add company</el-button>
       </div>
       <el-table @sort-change="onSort" :data="rows" stripe>
-        <el-table-column label="Hauler name" prop="name" sortable="custom" min-width="230"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.id)">{{ row.name }}</span></template></el-table-column>
+        <el-table-column label="Company name" prop="name" sortable="custom" min-width="230"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.id)">{{ row.name }}</span></template></el-table-column>
+        <el-table-column label="Types" min-width="190"><template #default="{ row }"><el-tag v-for="type in companyTypes(row)" :key="type" size="small" style="margin-right: 4px">{{ COMPANY_TYPES[type] }}</el-tag></template></el-table-column>
         <el-table-column label="ABN" prop="abn" sortable="custom" width="140" />
         <el-table-column label="Contact" prop="contact" sortable="custom" width="130" />
         <el-table-column label="Phone" prop="phone" sortable="custom" width="130" />
@@ -25,22 +28,24 @@
       </el-table>
       <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
     </div>
-    <EntityDialog v-model="dlg" :title="current ? 'Edit hauler' : 'Add hauler'" :fields="companyFields(current)" :record="current" :defaults="DEFAULTS.companies"
+    <EntityDialog v-model="dlg" :title="current ? 'Edit company' : 'Add company'" :fields="companyFields(current)" :record="current" :defaults="{ ...DEFAULTS.companies, types: JSON.stringify(typeFilter === 'all' ? [] : [typeFilter]) }"
       @submit="(d) => upsert('companies', current, d)" />
   </div>
 </template>
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import { usePaged } from '../composables/paged'
 import { exportCsv } from '../store/csv'
-import { state, save, ENTITY_STATUS } from '../store/db'
+import { state, save, ENTITY_STATUS, COMPANY_TYPES, companyTypes } from '../store/db'
 import { companyFields, DEFAULTS, upsert } from '../store/forms'
 
-const router = useRouter()
+const router = useRouter(), route = useRoute()
+const typeFilter = computed({ get: () => route.query.type || 'hauler', set: (type) => router.replace({ path: '/companies', query: { type } }) })
+const isHaulerView = computed(() => typeFilter.value === 'hauler')
 const q = ref(''), status = ref('')
 const counts = computed(() => {
   const m = {}
@@ -53,14 +58,14 @@ const counts = computed(() => {
 const count = (key, id) => counts.value[key].get(id) || 0
 const filtered = computed(() => {
   const k = q.value.trim().toLowerCase()
-  return state.companies.filter((c) => (!status.value || c.status === status.value) &&
+  return state.companies.filter((c) => (typeFilter.value === 'all' || companyTypes(c).includes(typeFilter.value)) && (!status.value || c.status === status.value) &&
     (!k || [c.name, c.abn, c.contact].some((x) => (x || '').toLowerCase().includes(k))))
 })
 const { page, pageSize, rows, sorted, onSort, total } = usePaged(filtered, 20, {
   driverCount: (c) => count('drivers', c.id), vehicleCount: (c) => count('vehicles', c.id), deviceCount: (c) => count('devices', c.id)
 })
 function download() {
-  exportCsv('companies', sorted.value.map((c) => ({ 'Hauler name': c.name, ABN: c.abn, Contact: c.contact,
+  exportCsv('companies', sorted.value.map((c) => ({ 'Company name': c.name, Types: companyTypes(c).map((t) => COMPANY_TYPES[t]).join('; '), ABN: c.abn, Contact: c.contact,
     Phone: c.phone, Address: c.address, Drivers: count('drivers', c.id), Vehicles: count('vehicles', c.id),
     Devices: count('devices', c.id), Status: ENTITY_STATUS[c.status] })))
 }

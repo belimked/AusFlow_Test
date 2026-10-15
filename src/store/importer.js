@@ -1,4 +1,4 @@
-import { state, idx, nextId, save, diffDevice, makeLog, CURRENT_USER } from './db'
+import { state, idx, isHauler, nextId, save, diffDevice, makeLog, CURRENT_USER } from './db'
 import { rowToDevice, rowToLocation, locationKey } from './csv'
 import { normName } from './seed'
 
@@ -7,7 +7,7 @@ const locKeyOf = (l) => [l.agreementNo || '', (l.address1 || '').toUpperCase(), 
 // Builds an import plan without touching state.
 export function previewImport(rows) {
   const locByKey = new Map(state.locations.map((l) => [locKeyOf(l), l]))
-  const coByName = new Map(state.companies.map((c) => [normName(c.name), c]))
+  const coByName = new Map(state.companies.filter(isHauler).map((c) => [normName(c.name), c]))
   const plan = { adds: [], updates: [], unchanged: 0, errors: [], newLocations: new Map(), newCompanies: new Set() }
   const seen = new Set()
   rows.forEach((r, i) => {
@@ -47,9 +47,9 @@ export function executeImport(plan, fileName) {
     state.locations.push(loc)
     locByKey.set(key, loc)
   }
-  const coByName = new Map(state.companies.map((c) => [normName(c.name), c]))
+  const coByName = new Map(state.companies.filter(isHauler).map((c) => [normName(c.name), c]))
   for (const name of plan.newCompanies) {
-    const c = { id: nextId('CO'), name, abn: '', contact: '', phone: '', address: '', status: 'active' }
+    const c = { id: nextId('CO'), name, abn: '', contact: '', phone: '', address: '', status: 'active', types: '["hauler"]' }
     state.companies.push(c)
     coByName.set(name, c)
   }

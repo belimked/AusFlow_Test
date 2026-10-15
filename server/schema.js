@@ -21,18 +21,22 @@ export const companies = sqliteTable('companies', {
   contact: text('contact'),
   phone: text('phone'),
   address: text('address'),
-  status: text('status').notNull().default('active')
+  status: text('status').notNull().default('active'),
+  types: text('types').notNull().default('["hauler"]')
 })
 
 export const locations = sqliteTable('locations', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   agreementNo: text('agreement_no'),
+  custodianCategory: text('custodian_category'),
   address1: text('address1'),
   address2: text('address2'),
   suburb: text('suburb'),
   state: text('state'),
   postcode: text('postcode'),
+  ownerId: text('owner_id'),
+  occupierId: text('occupier_id'),
   lat: real('lat'),
   lng: real('lng'),
   status: text('status').notNull().default('active')
@@ -141,6 +145,8 @@ export const unloads = sqliteTable('unloads', {
 export const changeLogs = sqliteTable('change_logs', {
   id: text('id').primaryKey(),
   deviceId: text('device_id'),
+  entityType: text('entity_type').notNull().default('device'),
+  entityId: text('entity_id'),
   field: text('field'),
   oldValue: text('old_value'),
   newValue: text('new_value'),
@@ -148,6 +154,28 @@ export const changeLogs = sqliteTable('change_logs', {
   source: text('source'),
   at: text('at')
 }, (t) => [index('change_logs_device_idx').on(t.deviceId)])
+
+export const notes = sqliteTable('notes', {
+  id: text('id').primaryKey(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  text: text('text').notNull(),
+  user: text('user'),
+  source: text('source').notNull(),
+  at: text('at')
+}, (t) => [index('notes_entity_idx').on(t.entityType, t.entityId)])
+
+export const inspections = sqliteTable('inspections', {
+  id: text('id').primaryKey(), deviceId: text('device_id').notNull(), inspector: text('inspector'),
+  at: text('at'), result: text('result').notNull(), comments: text('comments'),
+  nextInspection: text('next_inspection'), source: text('source').notNull()
+}, (t) => [index('inspections_device_idx').on(t.deviceId)])
+
+export const reportedIssues = sqliteTable('reported_issues', {
+  id: text('id').primaryKey(), deviceId: text('device_id').notNull(), category: text('category').notNull(),
+  description: text('description'), reportedBy: text('reported_by'), at: text('at'),
+  status: text('status').notNull().default('open'), source: text('source').notNull().default('App')
+}, (t) => [index('reported_issues_device_idx').on(t.deviceId)])
 
 export const importLogs = sqliteTable('import_logs', {
   id: text('id').primaryKey(),

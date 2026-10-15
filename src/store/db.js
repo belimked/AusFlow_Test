@@ -6,13 +6,13 @@ import { api, currentUser } from './api'
 const DAY = 864e5
 export let CURRENT_USER = ''
 
-const TABLES = ['companies', 'locations', 'devices', 'drivers', 'vehicles', 'facilities', 'pickups', 'transfers', 'unloads', 'changeLogs', 'importLogs', 'alertReads', 'alertNotes']
+const TABLES = ['companies', 'locations', 'devices', 'drivers', 'vehicles', 'facilities', 'pickups', 'transfers', 'unloads', 'changeLogs', 'importLogs', 'alertReads', 'alertNotes', 'notes', 'inspections', 'reportedIssues']
 
 function emptyState() {
   return {
     seq: {},
     locations: [], devices: [], companies: [], drivers: [], vehicles: [], facilities: [],
-    pickups: [], transfers: [], unloads: [], changeLogs: [], importLogs: [], alertReads: {}, alertNotes: []
+    pickups: [], transfers: [], unloads: [], changeLogs: [], importLogs: [], alertReads: {}, alertNotes: [], notes: [], inspections: [], reportedIssues: []
   }
 }
 
@@ -92,11 +92,18 @@ export const idx = {
   drivers: indexOf('drivers'), vehicles: indexOf('vehicles'), facilities: indexOf('facilities'),
   pickups: indexOf('pickups')
 }
+export const companyTypes = (c) => { try { return Array.isArray(c?.types) ? c.types : JSON.parse(c?.types || '["hauler"]') } catch { return ['hauler'] } }
+export const isHauler = (c) => companyTypes(c).includes('hauler')
+export const haulers = computed(() => state.companies.filter(isHauler))
+export const COMPANY_TYPES = { hauler: 'Hauler', owner: 'Owner', occupier: 'Occupier', facility_operator: 'Facility operator', authority: 'Authority' }
+export const INSPECTION_RESULTS = { compliant: 'Compliant', non_compliant: 'Non-compliant', follow_up: 'Follow-up required' }
+export const ISSUE_CATEGORIES = { baffle_damaged: 'Baffle damaged', no_washdown_tap: 'No wash-down tap', premises_closed: 'Premises closed / renovating', no_access: 'No access', qr_missing: 'QR tag missing', other: 'Other' }
 export const nameOf = (key, id) => idx[key].value.get(id)?.name ?? (id ? id : '—')
 export const plateOf = (id) => idx.vehicles.value.get(id)?.plate ?? '—'
 export const tagsOf = (d) => (d.tags || d.qr || '').split(/\s+/).filter(Boolean)
 
 // ---------- labels ----------
+export const CUSTODIAN = { private: 'Private', government: 'Government', council: 'Council', other: 'Other' }
 export const DEVICE_STATUS = { Active: 'Active', Inactive: 'Inactive', Removed: 'Removed' }
 export const ENTITY_STATUS = { active: 'Active', inactive: 'Inactive' }
 export const DRIVER_STATUS = { pending: 'Pending', active: 'Active', inactive: 'Inactive' }
@@ -147,13 +154,24 @@ function displayValue(field, v) {
 
 export function makeLog(deviceId, field, oldV, newV, source) {
   return {
-    id: nextId('CL'), deviceId, field: DEVICE_FIELDS[field] || field,
+    id: nextId('CL'), deviceId, entityType: 'device', entityId: deviceId, field: DEVICE_FIELDS[field] || field,
     oldValue: displayValue(field, oldV), newValue: displayValue(field, newV),
     user: CURRENT_USER, at: new Date().toISOString(), source
   }
 }
 export function logChange(...args) {
   state.changeLogs.unshift(makeLog(...args))
+}
+
+export function logEntityChange(entityType, entityId, field, oldV, newV, source = 'Web') {
+  state.changeLogs.unshift({ id: nextId('CL'), deviceId: null, entityType, entityId, field,
+    oldValue: String(oldV ?? ''), newValue: String(newV ?? ''), user: CURRENT_USER, source, at: new Date().toISOString() })
+  save()
+}
+
+export function addEntityNote(entityType, entityId, text, source = 'Web') {
+  state.notes.unshift({ id: nextId('NT'), entityType, entityId, text: text.trim(), user: CURRENT_USER, source, at: new Date().toISOString() })
+  logEntityChange(entityType, entityId, 'Note added', '', text.trim(), source)
 }
 
 export function diffDevice(dev, patch) {
@@ -223,22 +241,69 @@ export const vehicleCycles = computed(() => {
 // Prototype assumption: a transfer moves the whole load of the source vehicle, and an unload empties the vehicle.
 const ts = (s) => new Date(s).getTime()
 
+const forwardEvents = computed(() => {
+  const byVehicle = new Map()
+  for (const x of state.transfers) {
+    if (!byVehicle.has(x.fromVehicleId)) byVehicle.set(x.fromVehicleId, [])
+    byVehicle.get(x.fromVehicleId).push({ kind: 'transfer', at: x.at, ref: x })
+  }
+  for (const u of state.unloads) {
+    if (!byVehicle.has(u.vehicleId)) byVehicle.set(u.vehicleId, [])
+    byVehicle.get(u.vehicleId).push({ kind: 'unload', at: u.at, ref: u })
+  }
+  for (const events of byVehicle.values()) events.sort((a, b) => a.at.localeCompare(b.at))
+  return byVehicle
+})
+function nextForwardEvent(vehicleId, at) {
+  const events = forwardEvents.value.get(vehicleId) || []
+  let lo = 0, hi = events.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (events[mid].at < at) lo = mid + 1
+    else hi = mid
+  }
+  return events[lo]
+}
 export function traceForward(pickup) {
   const hops = [{ kind: 'pickup', vehicleId: pickup.vehicleId, at: pickup.endAt, ref: pickup }]
   let v = pickup.vehicleId, t = ts(pickup.endAt)
   for (let guard = 0; guard < 20; guard++) {
-    const tr = state.transfers.filter((x) => x.fromVehicleId === v && ts(x.at) >= t).sort((a, b) => ts(a.at) - ts(b.at))[0]
-    const un = state.unloads.filter((x) => x.vehicleId === v && ts(x.at) >= t).sort((a, b) => ts(a.at) - ts(b.at))[0]
-    if (un && (!tr || ts(un.at) <= ts(tr.at))) {
+    const event = nextForwardEvent(v, new Date(t).toISOString())
+    if (event?.kind === 'unload') {
+      const un = event.ref
       hops.push({ kind: 'unload', vehicleId: v, at: un.at, ref: un })
       return { hops, finished: true }
     }
-    if (!tr) return { hops, finished: false }
+    if (!event) return { hops, finished: false }
+    const tr = event.ref
     hops.push({ kind: 'transfer', vehicleId: tr.toVehicleId, at: tr.at, ref: tr })
     v = tr.toVehicleId
     t = ts(tr.at)
   }
   return { hops, finished: false }
+}
+
+// One reactive pass for all jobs; consumers reuse the same trace and destination.
+export const pickupDeliveries = computed(() => {
+  const result = new Map()
+  for (const p of state.pickups) {
+    if (p.status === 'ongoing') { result.set(p.id, { status: 'In progress', key: 'progress', vehicleId: p.vehicleId }); continue }
+    const trace = traceForward(p)
+    const unload = trace.finished ? trace.hops.at(-1).ref : null
+    result.set(p.id, { status: unload ? 'Delivered' : 'Pending', key: unload ? 'delivered' : 'pending',
+      unload, vehicleId: trace.hops.at(-1).vehicleId, facilityId: unload?.facilityId })
+  }
+  return result
+})
+
+export const unloadSources = (u) => {
+  const result = []
+  const walk = (tree) => {
+    result.push(...tree.pickups)
+    for (const t of tree.transfersIn) walk(t.source)
+  }
+  walk(traceBackward(u.vehicleId, new Date(u.at).getTime()))
+  return result
 }
 
 function windowStart(vehicleId, tEnd) {

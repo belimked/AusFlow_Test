@@ -13,6 +13,9 @@
         <div class="card">
           <el-descriptions :column="1" border>
             <el-descriptions-item label="Location ID">{{ loc.id }}</el-descriptions-item>
+            <el-descriptions-item label="Custodian">{{ CUSTODIAN[loc.custodianCategory] || '(Unspecified)' }}</el-descriptions-item>
+            <el-descriptions-item label="Owner"><span v-if="loc.ownerId" class="link" @click="router.push('/companies/' + loc.ownerId)">{{ nameOf('companies', loc.ownerId) }}</span><span v-else>—</span></el-descriptions-item>
+            <el-descriptions-item label="Occupier"><span v-if="loc.occupierId" class="link" @click="router.push('/companies/' + loc.occupierId)">{{ nameOf('companies', loc.occupierId) }}</span><span v-else>—</span></el-descriptions-item>
             <el-descriptions-item label="Agreement No.">{{ loc.agreementNo || '—' }}</el-descriptions-item>
             <el-descriptions-item label="Address">{{ [loc.address1, loc.address2].filter(Boolean).join(', ') }}</el-descriptions-item>
             <el-descriptions-item label="Suburb">{{ loc.suburb }} {{ loc.state }} {{ loc.postcode }}</el-descriptions-item>
@@ -40,7 +43,7 @@ import MapView from '../components/MapView.vue'
 import LocationDialog from '../components/LocationDialog.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
 import DeviceTable from '../components/DeviceTable.vue'
-import { state, idx, ENTITY_STATUS } from '../store/db'
+import { state, idx, nameOf, ENTITY_STATUS, CUSTODIAN } from '../store/db'
 
 const route = useRoute(), router = useRouter()
 const loc = computed(() => idx.locations.value.get(route.params.id))
