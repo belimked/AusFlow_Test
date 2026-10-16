@@ -8,4 +8,4 @@ crons = ["*/5 * * * *"]
 # Set APP_URL (e.g. https://wasteid-prototype.pages.dev) here or as a var,
 # and CRON_SECRET with: npx wrangler secret put CRON_SECRET --config cron/wrangler.toml
 [vars]
-APP_URL = ""
+APP_URL = "https://ausflow.saulxj.ggff.net"
