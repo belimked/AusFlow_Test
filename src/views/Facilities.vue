@@ -5,7 +5,7 @@
         <el-input v-model="q" placeholder="Search name / address" clearable :prefix-icon="'Search'" style="width: 260px" />
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
-        <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add Treatment Facility</el-button>
+        <el-button v-can="'write'" type="primary" :icon="'Plus'" @click="edit(null)">Add Treatment Facility</el-button>
       </div>
       <el-row :gutter="12">
         <el-col :span="15">
@@ -14,7 +14,7 @@
             <el-table-column label="Address" prop="address" sortable="custom" min-width="220" show-overflow-tooltip />
             <el-table-column label="Unloaded (14 days)" prop="volume" sortable="custom" width="170" align="right"><template #default="{ row }">{{ fmtL(volumes.get(row.id) || 0) }}</template></el-table-column>
             <el-table-column label="Status" prop="status" sortable="custom" width="90"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
-            <el-table-column label="Actions" width="175"><template #default="{ row }">
+            <el-table-column v-if="can('write')" label="Actions" width="175"><template #default="{ row }">
               <el-button link type="primary" @click="edit(row)">Edit</el-button>
               <el-button link :type="row.status === 'active' ? 'danger' : 'success'" @click="toggle(row)">{{ row.status === 'active' ? 'Deactivate' : 'Activate' }}</el-button>
             </template></el-table-column>
@@ -35,6 +35,7 @@ import { usePaged } from '../composables/paged'
 import MapView from '../components/MapView.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import { state, save, fmtL, ENTITY_STATUS } from '../store/db'
+import { can } from '../store/api'
 import { facilityFields, DEFAULTS, upsert } from '../store/forms'
 
 const router = useRouter()

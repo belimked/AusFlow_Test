@@ -5,7 +5,8 @@ export const users = sqliteTable('users', {
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
-  role: text('role').notNull().default('authority'),
+  role: text('role').notNull().default('user'),
+  email: text('email'),
   status: text('status').notNull().default('active')
 })
 
@@ -22,7 +23,7 @@ export const companies = sqliteTable('companies', {
   phone: text('phone'),
   address: text('address'),
   status: text('status').notNull().default('active'),
-  types: text('types').notNull().default('["hauler"]')
+  types: text('types').notNull().default('["transport"]')
 })
 
 export const locations = sqliteTable('locations', {
@@ -62,7 +63,8 @@ export const devices = sqliteTable('devices', {
   locationDesc: text('location_desc'),
   comments: text('comments'),
   locationId: text('location_id'),
-  companyId: text('company_id')
+  companyId: text('company_id'),
+  ownerId: text('owner_id')
 }, (t) => [index('devices_location_idx').on(t.locationId), index('devices_company_idx').on(t.companyId)])
 
 export const drivers = sqliteTable('drivers', {
@@ -205,6 +207,49 @@ export const alertNotes = sqliteTable('alert_notes', {
 export const alertReads = sqliteTable('alert_reads', {
   id: text('id').primaryKey()
 })
+
+export const tickets = sqliteTable('tickets', {
+  id: text('id').primaryKey(),
+  subject: text('subject').notNull(),
+  body: text('body'),
+  bodyHtml: text('body_html'),
+  headers: text('headers', { mode: 'json' }),
+  raw: text('raw'),
+  fromAddr: text('from_addr'),
+  fromEmail: text('from_email'),
+  messageId: text('message_id').unique(),
+  dedupeKey: text('dedupe_key'),
+  keywords: text('keywords', { mode: 'json' }),
+  priority: text('priority').notNull(),
+  confidence: real('confidence'),
+  classifiedBy: text('classified_by'),
+  assigneeId: text('assignee_id'),
+  status: text('status').notNull().default('open'),
+  source: text('source').notNull().default('email'),
+  receivedAt: text('received_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull()
+}, (t) => [index('tickets_status_idx').on(t.status), index('tickets_assignee_idx').on(t.assigneeId), index('tickets_dedupe_idx').on(t.dedupeKey)])
+
+export const ticketAttachments = sqliteTable('ticket_attachments', {
+  id: text('id').primaryKey(),
+  ticketId: text('ticket_id').notNull(),
+  filename: text('filename'),
+  mimeType: text('mime_type'),
+  contentId: text('content_id'),
+  disposition: text('disposition'),
+  size: integer('size'),
+  dataUrl: text('data_url')
+}, (t) => [index('ticket_attachments_ticket_idx').on(t.ticketId)])
+
+export const ticketNotes = sqliteTable('ticket_notes', {
+  id: text('id').primaryKey(),
+  ticketId: text('ticket_id').notNull(),
+  kind: text('kind').notNull(),
+  text: text('text'),
+  user: text('user'),
+  at: text('at').notNull()
+}, (t) => [index('ticket_notes_ticket_idx').on(t.ticketId)])
 
 export const photos = sqliteTable('photos', {
   id: text('id').primaryKey(),

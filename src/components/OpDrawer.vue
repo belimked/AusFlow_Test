@@ -2,7 +2,7 @@
   <el-drawer :model-value="!!record" :title="record ? `${kind === 'transfer' ? 'Transfer' : 'Unload'} ${record.id}` : ''" size="520px" @close="emit('close')">
     <template v-if="record">
       <el-descriptions :column="1" border>
-        <el-descriptions-item label="Hauler">{{ nameOf('companies', record.companyId) }}</el-descriptions-item>
+        <el-descriptions-item label="Transport company">{{ nameOf('companies', record.companyId) }}</el-descriptions-item>
         <el-descriptions-item label="Driver">{{ nameOf('drivers', record.driverId) }}</el-descriptions-item>
         <template v-if="kind === 'transfer'">
           <el-descriptions-item label="From vehicle">{{ plateOf(record.fromVehicleId) }}</el-descriptions-item>

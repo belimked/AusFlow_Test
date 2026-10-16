@@ -25,16 +25,20 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AlertList from './AlertList.vue'
+import SeverityChips from './SeverityChips.vue'
 import { activeAlerts, unreadCount, isRead, markRead } from '../store/alerts'
 
 const router = useRouter()
 const open = ref(false)
 const filter = ref('unread')
+const severity = ref('')
 const shown = computed(() => (filter.value === 'all' ? activeAlerts.value : activeAlerts.value.filter((a) => !isRead(a))))
+const shownBySeverity = computed(() => shown.value.filter((a) => !severity.value || a.severity === severity.value))
 function go() { open.value = false; router.push('/alerts') }
 </script>
 <style scoped>
 .bell :deep(.el-badge__content) { z-index: 2; }
 .head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #ebeef5; }
+.chip-bar { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; }
 .foot { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid #ebeef5; }
 </style>

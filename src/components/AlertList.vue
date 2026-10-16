@@ -24,7 +24,7 @@ import { ALERT_TYPES, ALERT_STATUS, isRead, statusOf, notesOf, showAlert } from 
 defineProps({ items: Array })
 const emit = defineEmits(['navigate'])
 const TAG = { critical: 'danger', warning: 'warning', info: 'info' }
-const ICONS = { overdue: 'AlarmClock', longJob: 'Timer', location: 'Location', capacity: 'Histogram', nolocation: 'Position', vehicleFull: 'Van', haulerBacklog: 'Briefcase', pendingDriver: 'User', vehicleOverload: 'Van', unloadOverTank: 'WarningFilled', devicePumpedOver: 'Histogram', unloadDelayed: 'Timer', wasteMismatch: 'WarningFilled' }
+const ICONS = { overdue: 'AlarmClock', longJob: 'Timer', location: 'Location', capacity: 'Histogram', nolocation: 'Position', vehicleFull: 'Van', transportBacklog: 'Briefcase', pendingDriver: 'User', vehicleOverload: 'Van', unloadOverTank: 'WarningFilled', devicePumpedOver: 'Histogram', unloadDelayed: 'Timer', wasteMismatch: 'WarningFilled', transferOverCapacity: 'Switch' }
 const noteCount = (a) => notesOf(a.alertId).filter((n) => n.kind === 'note').length
 function ago(s) {
   if (!s) return 'Time unknown'

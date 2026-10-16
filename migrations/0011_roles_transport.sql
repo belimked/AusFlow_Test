@@ -1,0 +1,5 @@
+UPDATE `users` SET `role` = 'admin', `display_name` = 'admin (Admin)' WHERE `role` = 'authority';--> statement-breakpoint
+UPDATE `companies` SET `types` = REPLACE(`types`, '"hauler"', '"transport"');--> statement-breakpoint
+INSERT OR IGNORE INTO `users` (`id`, `username`, `password_hash`, `display_name`, `role`, `status`) VALUES ('US0002', 'ops01', 'pbkdf2$100000$IdkYl481AQc-8dcGc1JKfQ$WkCQ4CKR0wuwaLf_2vAkmyJXWNX14DR6L_LckhA4RYs', 'Olivia Reed (Ops)', 'ops', 'active');--> statement-breakpoint
+INSERT OR IGNORE INTO `users` (`id`, `username`, `password_hash`, `display_name`, `role`, `status`) VALUES ('US0003', 'ops02', 'pbkdf2$100000$IdkYl481AQc-8dcGc1JKfQ$WkCQ4CKR0wuwaLf_2vAkmyJXWNX14DR6L_LckhA4RYs', 'Marcus Lane (Ops)', 'ops', 'active');--> statement-breakpoint
+INSERT OR IGNORE INTO `users` (`id`, `username`, `password_hash`, `display_name`, `role`, `status`) VALUES ('US0004', 'user01', 'pbkdf2$100000$hM_LkVRxaYEWGD650jz-Ng$ZLsHu4MbesLRBJ1cNfXYeRaP7XOpBIMXkJycLA4Yxi4', 'Priya Shah (User)', 'user', 'active');

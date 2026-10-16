@@ -2,7 +2,7 @@
   <div>
     <el-table @sort-change="onSort" :data="paged" stripe size="small">
       <el-table-column label="ID" prop="id" sortable="custom" width="86" />
-      <el-table-column v-if="!hideCompany" label="Hauler" prop="companyId" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
+      <el-table-column v-if="!hideCompany" label="Transport company" prop="companyId" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
       <el-table-column label="Driver" prop="driverId" sortable="custom" width="110"><template #default="{ row }">{{ nameOf('drivers', row.driverId) }}</template></el-table-column>
       <el-table-column label="From vehicle" prop="fromVehicleId" sortable="custom" width="125"><template #default="{ row }"><span class="link" @click="router.push('/vehicles/' + row.fromVehicleId)">{{ plateOf(row.fromVehicleId) }}</span></template></el-table-column>
       <el-table-column label="To vehicle" prop="toVehicleId" sortable="custom" width="115"><template #default="{ row }"><span class="link" @click="router.push('/vehicles/' + row.toVehicleId)">{{ plateOf(row.toVehicleId) }}</span></template></el-table-column>

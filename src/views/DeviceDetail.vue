@@ -6,10 +6,10 @@
       <el-tag :type="{ Active: 'success', Inactive: 'info', Removed: 'danger' }[dev.status]">{{ DEVICE_STATUS[dev.status] }}</el-tag>
       <el-tag v-if="isOverdue(dev)" type="danger" effect="dark">{{ overdueText(dev) }}</el-tag>
       <span style="flex: 1" />
-      <el-button @click="tab = 'notes'; noteDialog = true">Add note</el-button>
-      <el-button @click="tab = 'inspections'; inspectDialog = true">Inspect</el-button>
-      <el-button :icon="'Edit'" @click="dlg = true">Edit</el-button>
-      <el-dropdown @command="setStatus">
+      <el-button v-can="'write'" @click="tab = 'notes'; noteDialog = true">Add note</el-button>
+      <el-button v-can="'write'" @click="tab = 'inspections'; inspectDialog = true">Inspect</el-button>
+      <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
+      <el-dropdown v-can="'write'" @command="setStatus">
         <el-button>Change status<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
         <template #dropdown><el-dropdown-menu>
           <el-dropdown-item v-for="(l, v) in DEVICE_STATUS" :key="v" :command="v" :disabled="v === dev.status">{{ l }}</el-dropdown-item>
@@ -28,18 +28,22 @@
                 <el-descriptions-item label="Tag ID" :span="2"><InlineField :device="dev" field="tags"><TagIds :device="dev" inline /></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Location" :span="2"><InlineField :device="dev" field="locationId"><span class="link" @click="router.push('/locations/' + dev.locationId)">{{ loc?.name }}</span>
                   <span class="muted" style="margin-left: 6px">{{ loc?.address1 }}, {{ loc?.suburb }}</span></InlineField></el-descriptions-item>
+                <el-descriptions-item label="Service frequency"><InlineField :device="dev" field="freqWeeks">{{ dev.freqWeeks ? dev.freqWeeks + ' wk' : 'Not set' }}</InlineField></el-descriptions-item>
+                <el-descriptions-item label="Last service"><InlineField :device="dev" field="lastService">{{ fmtTime(dev.lastService) }}</InlineField></el-descriptions-item>
+                <el-descriptions-item label="Next service"><span :class="{ red: isOverdue(dev) }">{{ fmtDate(nextService(dev)) }}</span></el-descriptions-item>
+                <el-descriptions-item label="Overdue"><span class="red">{{ overdueText(dev) || (dev.status === 'Active' ? 'Not overdue' : '—') }}</span></el-descriptions-item>
                 <el-descriptions-item label="Status"><InlineField :device="dev" field="status">{{ DEVICE_STATUS[dev.status] }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Device type"><InlineField :device="dev" field="type">{{ dev.type || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Waste type"><InlineField :device="dev" field="waste"><WasteType :text="dev.waste" /></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Capacity"><InlineField :device="dev" field="capacity">{{ fmtL(dev.capacity) }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Service frequency"><InlineField :device="dev" field="freqWeeks">{{ dev.freqWeeks ? dev.freqWeeks + ' wk' : 'Not set' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Last service"><InlineField :device="dev" field="lastService">{{ fmtTime(dev.lastService) }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Approval category"><InlineField :device="dev" field="approvalCategory">{{ dev.approvalCategory || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Risk rating"><InlineField :device="dev" field="risk">{{ dev.risk || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Responsible hauler" :span="2"><InlineField :device="dev" field="companyId">
+                <el-descriptions-item label="Responsible transport company" :span="2"><InlineField :device="dev" field="companyId">
                   <span v-if="dev.companyId" class="link" @click="router.push('/companies/' + dev.companyId)">{{ nameOf('companies', dev.companyId) }}</span><span v-else>—</span>
                 </InlineField></el-descriptions-item>
-                <el-descriptions-item label="Owner"><span v-if="loc?.ownerId" class="link" @click="router.push('/companies/' + loc.ownerId)">{{ nameOf('companies', loc.ownerId) }}</span><span v-else>—</span></el-descriptions-item>
+                <el-descriptions-item label="Owner"><InlineField :device="dev" field="ownerId">
+                  <span v-if="dev.ownerId" class="link" @click="router.push('/companies/' + dev.ownerId)">{{ nameOf('companies', dev.ownerId) }}</span><span v-else>—</span>
+                </InlineField></el-descriptions-item>
                 <el-descriptions-item label="Occupier"><span v-if="loc?.occupierId" class="link" @click="router.push('/companies/' + loc.occupierId)">{{ nameOf('companies', loc.occupierId) }}</span><span v-else>—</span></el-descriptions-item>
                 <el-descriptions-item label="Location description" :span="2"><InlineField :device="dev" field="locationDesc">{{ dev.locationDesc || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Comments" :span="2"><InlineField :device="dev" field="comments">{{ dev.comments || '—' }}</InlineField></el-descriptions-item>
@@ -56,7 +60,7 @@
             </el-col>
           </el-row>
         </el-tab-pane>
-        <el-tab-pane label="Service dates" name="service">
+        <el-tab-pane label="History" name="service">
           <el-descriptions :column="2" border style="max-width: 760px">
             <el-descriptions-item label="Last service">{{ fmtTime(dev.lastService) }}</el-descriptions-item>
             <el-descriptions-item label="Service frequency">{{ dev.freqWeeks ? dev.freqWeeks + ' wk (' + dev.freqWeeks * 7 + ' days)' : 'Not set' }}</el-descriptions-item>
@@ -96,16 +100,16 @@
               </template></el-table-column>
               <el-table-column label="Type" min-width="140" show-overflow-tooltip><template #default="{ row }">{{ row.d.type }}</template></el-table-column>
               <el-table-column label="Status" width="90"><template #default="{ row }">{{ DEVICE_STATUS[row.d.status] }}</template></el-table-column>
-              <el-table-column label="Hauler" min-width="170" show-overflow-tooltip><template #default="{ row }">{{ row.d.companyId ? nameOf('companies', row.d.companyId) : '—' }}</template></el-table-column>
+              <el-table-column label="Transport company" min-width="170" show-overflow-tooltip><template #default="{ row }">{{ row.d.companyId ? nameOf('companies', row.d.companyId) : '—' }}</template></el-table-column>
             </el-table>
           </template>
         </el-tab-pane>
         <el-tab-pane :label="`Notes (${notes.length})`" name="notes">
-          <el-button type="primary" @click="noteDialog = true">Add note</el-button>
+          <el-button v-can="'write'" type="primary" @click="noteDialog = true">Add note</el-button>
           <div v-for="n in notes" :key="n.id" style="padding: 10px; border-bottom: 1px solid #eee">{{ n.text }} <span class="muted">· {{ n.user }} · {{ n.source }} · {{ fmtTime(n.at) }}</span></div>
         </el-tab-pane>
         <el-tab-pane :label="`Inspections (${inspections.length})`" name="inspections">
-          <el-button type="primary" @click="inspectDialog = true">Inspect</el-button>
+          <el-button v-can="'write'" type="primary" @click="inspectDialog = true">Inspect</el-button>
           <el-table :data="inspections" row-key="id"><el-table-column type="expand"><template #default="{ row }"><EntityPhotos type="inspection" :id="row.id" /></template></el-table-column>
             <el-table-column label="Date" width="190"><template #default="{ row }">{{ fmtTime(row.at) }}</template></el-table-column>
             <el-table-column prop="inspector" label="Inspector" /><el-table-column label="Result"><template #default="{ row }"><el-tag :type="row.result === 'compliant' ? 'success' : 'warning'">{{ INSPECTION_RESULTS[row.result] }}</el-tag></template></el-table-column>
@@ -118,7 +122,7 @@
             <el-table-column prop="description" label="Description" /><el-table-column prop="reportedBy" label="Reported by" />
             <el-table-column label="Date"><template #default="{ row }">{{ fmtTime(row.at) }}</template></el-table-column>
             <el-table-column label="Status"><template #default="{ row }"><el-tag :type="row.status === 'open' ? 'warning' : 'success'">{{ row.status }}</el-tag></template></el-table-column>
-            <el-table-column label="Action"><template #default="{ row }"><el-button v-if="row.status === 'open'" link type="primary" @click="resolve(row)">Resolve</el-button></template></el-table-column>
+            <el-table-column label="Action"><template #default="{ row }"><el-button v-if="row.status === 'open' && can('write')" link type="primary" @click="resolve(row)">Resolve</el-button></template></el-table-column>
           </el-table>
         </el-tab-pane>
         <el-tab-pane :label="`Change Log (${logs.length})`" name="logs">
@@ -154,6 +158,7 @@ import TagIds from '../components/TagIds.vue'
 import WasteType from '../components/WasteType.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
 import { tagsOf, state, idx, nameOf, updateDevice, logChange, addEntityNote, nextId, CURRENT_USER, INSPECTION_RESULTS, ISSUE_CATEGORIES, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
+import { can } from '../store/api'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')

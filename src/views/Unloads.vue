@@ -2,7 +2,7 @@
   <div class="page">
     <div class="card">
       <div class="toolbar">
-        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 220px"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-select v-model="f.company" placeholder="Transport company" clearable filterable style="width: 220px"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         <el-select v-model="f.facility" placeholder="Treatment Facility" clearable style="width: 240px"><el-option v-for="x in state.facilities" :key="x.id" :label="x.name" :value="x.id" /></el-select>
         <el-input v-model="f.plate" placeholder="Plate" clearable style="width: 140px" />
         <el-date-picker v-model="f.range" type="daterange" start-placeholder="Start" end-placeholder="End" style="width: 260px" />
@@ -19,12 +19,12 @@ import UnloadTable from '../components/UnloadTable.vue'
 import OpDrawer from '../components/OpDrawer.vue'
 import { wasteCodeOf } from '../store/wasteCodes'
 import { exportCsv } from '../store/csv'
-import { state, haulers, plateOf, fmtL, fmtTime, nameOf } from '../store/db'
+import { state, transports, plateOf, fmtL, fmtTime, nameOf } from '../store/db'
 
 const cur = ref(null), table = ref(null)
 function download() {
   exportCsv('unloads', (table.value?.sorted || filtered.value).map((u) => ({
-    ID: u.id, Hauler: nameOf('companies', u.companyId), Driver: nameOf('drivers', u.driverId),
+    ID: u.id, 'Transport company': nameOf('companies', u.companyId), Driver: nameOf('drivers', u.driverId),
     Vehicle: plateOf(u.vehicleId), 'Treatment Facility': nameOf('facilities', u.facilityId),
     'Waste type': u.waste || '—', 'Waste code': wasteCodeOf(u.waste), Volume: fmtL(u.volume), Time: fmtTime(u.at)
   })))

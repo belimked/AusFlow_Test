@@ -5,8 +5,8 @@
       {{ loc.name }}
       <el-tag :type="loc.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[loc.status] }}</el-tag>
       <span style="flex: 1" />
-      <el-button :icon="'Edit'" @click="dlg = true">Edit</el-button>
-      <el-button type="primary" :icon="'Plus'" @click="deviceDlg = true">Add device here</el-button>
+      <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
+      <el-button v-can="'write'" type="primary" :icon="'Plus'" @click="deviceDlg = true">Add device here</el-button>
     </h2>
     <el-row :gutter="12">
       <el-col :span="12">

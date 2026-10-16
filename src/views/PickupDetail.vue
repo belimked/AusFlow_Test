@@ -12,7 +12,7 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="Device"><span class="link" @click="router.push('/devices/' + p.deviceId)">{{ p.deviceId }}</span> {{ dev?.aka }}</el-descriptions-item>
             <el-descriptions-item label="Location"><span class="link" @click="router.push('/locations/' + p.locationId)">{{ nameOf('locations', p.locationId) }}</span></el-descriptions-item>
-            <el-descriptions-item label="Hauler">{{ nameOf('companies', p.companyId) }}</el-descriptions-item>
+            <el-descriptions-item label="Transport company">{{ nameOf('companies', p.companyId) }}</el-descriptions-item>
             <el-descriptions-item label="Driver">{{ nameOf('drivers', p.driverId) }}</el-descriptions-item>
             <el-descriptions-item label="Vehicle"><span class="link" @click="router.push('/vehicles/' + p.vehicleId)">{{ plateOf(p.vehicleId) }}</span></el-descriptions-item>
             <el-descriptions-item label="Waste type"><WasteType :text="p.waste" /></el-descriptions-item>

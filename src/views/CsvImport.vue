@@ -2,7 +2,7 @@
   <div class="page">
     <div class="card">
       <el-tabs v-model="tab">
-        <el-tab-pane label="CSV Import" name="upload">
+        <el-tab-pane v-if="can('write')" label="CSV Import" name="upload">
           <el-steps :active="step" finish-status="success" simple style="margin-bottom: 16px">
             <el-step title="Upload file" /><el-step title="Review" /><el-step title="Done" />
           </el-steps>
@@ -24,7 +24,7 @@
           <div v-if="step === 1 && plan">
             <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px"
               :title="`File: ${fileName}, ${rowCount} rows`"
-              description="Review the results before importing. Updates are recorded in the Change Log (Source = CSV Import). Serviced By maps to the device’s Responsible hauler; Last service is only overwritten when the CSV date is newer." />
+              description="Review the results before importing. Updates are recorded in the Change Log (Source = CSV Import). Serviced By maps to the device’s Responsible transport company; Last service is only overwritten when the CSV date is newer." />
             <el-row :gutter="12" style="margin-bottom: 12px">
               <el-col :span="4" v-for="s in summary" :key="s.label">
                 <div class="sum" :class="s.cls"><div class="muted">{{ s.label }}</div><div class="n">{{ s.value }}</div></div>
@@ -51,7 +51,7 @@
                       <div v-for="f in row.fields" :key="f">
                         <b>{{ DEVICE_FIELDS[f] }}</b>: <span class="muted">{{ show(f, idx.devices.value.get(row.device.ref)[f]) }}</span> → {{ show(f, row.patch[f]) }}
                       </div>
-                      <div v-if="!row.fields.length" class="muted">Location or hauler will be created and linked on import</div>
+                      <div v-if="!row.fields.length" class="muted">Location or transport company will be created and linked on import</div>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -100,7 +100,7 @@
             <el-table-column prop="updated" label="Updated" width="90" align="right" />
             <el-table-column prop="unchanged" label="Unchanged" width="105" align="right" />
             <el-table-column label="Errors" width="80" align="right"><template #default="{ row }"><span :class="{ red: row.failed }">{{ row.failed }}</span></template></el-table-column>
-            <el-table-column label="New locations / haulers" width="190" align="right"><template #default="{ row }">{{ row.newLocations }} / {{ row.newCompanies }}</template></el-table-column>
+            <el-table-column label="New locations / transport companies" width="190" align="right"><template #default="{ row }">{{ row.newLocations }} / {{ row.newCompanies }}</template></el-table-column>
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -114,9 +114,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { parseCsvText } from '../store/csv'
 import { previewImport, executeImport } from '../store/importer'
 import { state, idx, nameOf, fmtTime, fmtDate, DEVICE_FIELDS, DEVICE_STATUS } from '../store/db'
+import { can } from '../store/api'
 
 const router = useRouter()
-const tab = ref('upload'), step = ref(0), previewTab = ref('adds'), parsing = ref(false)
+const tab = ref(can('write') ? 'upload' : 'history'), step = ref(0), previewTab = ref('adds'), parsing = ref(false)
 const plan = ref(null), result = ref(null), fileName = ref(''), rowCount = ref(0)
 
 const REQUIRED = ['Device Ref', 'Status', 'Device Type', 'Capacity', 'Service Frequency', 'Location Names', 'Address Line 1']
@@ -147,7 +148,7 @@ const summary = computed(() => [
   { label: 'Unchanged', value: plan.value.unchanged },
   { label: 'Errors', value: plan.value.errors.length, cls: 'err' },
   { label: 'New locations', value: plan.value.newLocations.size },
-  { label: 'New haulers', value: plan.value.newCompanies.size }
+  { label: 'New transport companies', value: plan.value.newCompanies.size }
 ])
 const show = (f, v) => {
   if (v == null || v === '') return '(empty)'

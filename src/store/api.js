@@ -4,6 +4,11 @@ const USER = 'wasteid-user'
 export const isSignedIn = () => !!sessionStorage.getItem(TOKEN)
 export const currentUser = () => JSON.parse(sessionStorage.getItem(USER) || 'null')
 
+export const ROLE_LABELS = { admin: 'Admin', ops: 'Operations', user: 'User' }
+export const roleOf = () => { const r = currentUser()?.role; return r === 'authority' ? 'admin' : r || 'user' }
+const PERMS = { write: ['admin', 'ops'], admin: ['admin'] }
+export const can = (perm) => !!PERMS[perm]?.includes(roleOf())
+
 export function logout() {
   sessionStorage.removeItem(TOKEN)
   sessionStorage.removeItem(USER)

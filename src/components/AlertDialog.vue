@@ -27,7 +27,7 @@
             <el-descriptions-item v-if="r.deviceId" label="Device"><span class="link mono" @click="go('/devices/' + r.deviceId)">{{ r.deviceId }}</span>
               <span class="muted"> {{ device?.aka }}</span></el-descriptions-item>
             <el-descriptions-item v-if="r.locationId" label="Location"><span class="link" @click="go('/locations/' + r.locationId)">{{ nameOf('locations', r.locationId) }}</span></el-descriptions-item>
-            <el-descriptions-item label="Hauler">
+            <el-descriptions-item label="Transport company">
               <span v-if="r.companyId" class="link" @click="go('/companies/' + r.companyId)">{{ nameOf('companies', r.companyId) }}</span><span v-else>—</span>
             </el-descriptions-item>
             <el-descriptions-item v-if="r.vehicleId" label="Vehicle"><span class="link mono" @click="go('/vehicles/' + r.vehicleId)">{{ plateOf(r.vehicleId) }}</span></el-descriptions-item>
@@ -57,8 +57,10 @@
       <el-row :gutter="16" style="margin-top: 16px">
         <el-col :span="12">
           <h4>Notes &amp; follow-up</h4>
-          <el-input v-model="text" type="textarea" :rows="3" placeholder="Add a note: action taken, who was contacted, next step…" />
-          <div style="text-align: right; margin-top: 6px"><el-button type="primary" size="small" :disabled="!text.trim()" @click="addNote">Add note</el-button></div>
+          <template v-if="can('write')">
+            <el-input v-model="text" type="textarea" :rows="3" placeholder="Add a note: action taken, who was contacted, next step…" />
+            <div style="text-align: right; margin-top: 6px"><el-button type="primary" size="small" :disabled="!text.trim()" @click="addNote">Add note</el-button></div>
+          </template>
           <el-timeline v-if="notes.length" style="margin-top: 8px; padding-left: 2px">
             <el-timeline-item v-for="n in notes" :key="n.id" :timestamp="`${fmtTime(n.at)} · ${n.user}`" :type="n.kind === 'status' ? 'primary' : ''" placement="top">
               <span v-if="n.kind === 'status'">Status changed to <b>{{ ALERT_STATUS[statusLabel(n.status)] }}</b></span>
@@ -73,7 +75,7 @@
       </el-row>
     </div>
     <template #footer>
-      <div v-if="a" class="ft">
+      <div v-if="a && can('write')" class="ft">
         <span class="muted">Follow-up status</span>
         <el-button v-if="!['new', 'acknowledged'].includes(status)" @click="changeStatus('new')">Reopen</el-button>
         <el-button v-for="v in ['acknowledged', 'cleared', 'dismissed']" :key="v" :type="STATUS_TYPE[v]" :plain="status !== v" :icon="STATUS_ICON[v]"
@@ -90,6 +92,7 @@ import { requestReason } from '../store/warningActions'
 import MapView from './MapView.vue'
 import EntityPhotos from './EntityPhotos.vue'
 import { idx, nameOf, plateOf, fmtTime } from '../store/db'
+import { can } from '../store/api'
 import { alertDrawer, ALERT_TYPES, ALERT_CATEGORIES, ALERT_STATUS, SEVERITY, statusOf, notesOf, addAlertNote, setAlertStatus } from '../store/alerts'
 
 const SEV_TAG = { critical: 'danger', warning: 'warning', info: 'info' }

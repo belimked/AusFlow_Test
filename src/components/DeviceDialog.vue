@@ -17,8 +17,11 @@
         <el-col :span="12"><el-form-item label="Service frequency (weeks)"><el-input-number v-model="form.freqWeeks" :min="0" :max="520" style="width: 100%" /></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Approval category"><el-input v-model="form.approvalCategory" /></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Risk rating"><el-select v-model="form.risk" clearable style="width: 100%"><el-option v-for="r in ['0','1','2','3','4','5','6','7']" :key="r" :value="r" /></el-select></el-form-item></el-col>
-        <el-col :span="12"><el-form-item label="Responsible hauler">
-          <el-select v-model="form.companyId" clearable filterable style="width: 100%"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-col :span="12"><el-form-item label="Responsible transport company">
+          <el-select v-model="form.companyId" clearable filterable style="width: 100%"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        </el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="Owner">
+          <el-select v-model="form.ownerId" clearable filterable placeholder="Owner company" style="width: 100%"><el-option v-for="c in owners" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         </el-form-item></el-col>
         <el-col :span="12"><el-form-item label="Status">
           <el-radio-group v-model="form.status"><el-radio v-for="(l, v) in DEVICE_STATUS" :key="v" :value="v">{{ l }}</el-radio></el-radio-group>
@@ -44,7 +47,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
-import { state, haulers, idx, updateDevice, createDevice, DEVICE_STATUS } from '../store/db'
+import { state, transports, idx, updateDevice, createDevice, DEVICE_STATUS, isTransport } from '../store/db'
 
 const visible = defineModel({ type: Boolean })
 const props = defineProps({ record: Object, defaults: Object })
@@ -54,7 +57,7 @@ const genQr = () => Array.from({ length: 12 }, () => 'ABCDEFGHJKLMNPRSTUVWXYZ234
 const genRef = () => { let r; do r = 'DV' + (900000 + Math.floor(Math.random() * 99999)); while (idx.devices.value.has(r)); return r }
 const blank = () => ({
   locationId: '', ref: genRef(), aka: '', status: 'Active', type: 'Grease Arrestor', waste: 'Grease Trap Waste', capacity: 1000,
-  freqWeeks: 13, lastService: null, approvalCategory: '', risk: '', locationDesc: '', companyId: null, qr: genQr(), tags: '', lat: null, lng: null, comments: ''
+  freqWeeks: 13, lastService: null, approvalCategory: '', risk: '', locationDesc: '', companyId: null, ownerId: null, qr: genQr(), tags: '', lat: null, lng: null, comments: ''
 })
 const form = reactive(blank())
 const rules = {
@@ -64,6 +67,7 @@ const rules = {
 }
 const locationOptions = computed(() => state.locations.map((l) => ({ value: l.id, label: `${l.name} — ${l.address1}, ${l.suburb}` })))
 const types = computed(() => [...new Set(state.devices.map((d) => d.type).filter(Boolean))].sort())
+const owners = computed(() => state.companies.filter((c) => !isTransport(c)))
 const wastes = computed(() => [...new Set(state.devices.map((d) => d.waste).filter(Boolean))].sort())
 
 watch(visible, (v) => {

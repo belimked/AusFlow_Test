@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <h2>{{ isHaulerView ? 'Haulers' : 'Companies' }}</h2>
+    <h2>{{ isTransportView ? 'Transport companies' : 'Companies' }}</h2>
     <div class="card">
       <div class="toolbar">
         <el-input v-model="q" placeholder="Search company / ABN / contact" clearable :prefix-icon="'Search'" style="width: 290px" />
@@ -8,7 +8,7 @@
         <el-select v-model="status" placeholder="Status" clearable style="width: 110px"><el-option v-for="(l, v) in ENTITY_STATUS" :key="v" :label="l" :value="v" /></el-select>
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
-        <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add company</el-button>
+        <el-button v-can="'write'" type="primary" :icon="'Plus'" @click="edit(null)">Add company</el-button>
       </div>
       <el-table @sort-change="onSort" :data="rows" stripe>
         <el-table-column label="Company name" prop="name" sortable="custom" min-width="230"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.id)">{{ row.name }}</span></template></el-table-column>
@@ -21,7 +21,7 @@
         <el-table-column label="Vehicles" prop="vehicleCount" sortable="custom" width="90" align="right"><template #default="{ row }">{{ count('vehicles', row.id) }}</template></el-table-column>
         <el-table-column label="Devices" prop="deviceCount" sortable="custom" width="85" align="right"><template #default="{ row }">{{ count('devices', row.id) }}</template></el-table-column>
         <el-table-column label="Status" prop="status" sortable="custom" width="95"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
-        <el-table-column label="Actions" width="180" fixed="right"><template #default="{ row }">
+        <el-table-column v-if="can('write')" label="Actions" width="180" fixed="right"><template #default="{ row }">
           <el-button link type="primary" @click="edit(row)">Edit</el-button>
           <el-button link :type="row.status === 'active' ? 'danger' : 'success'" @click="toggle(row)">{{ row.status === 'active' ? 'Deactivate' : 'Activate' }}</el-button>
         </template></el-table-column>
@@ -41,11 +41,12 @@ import EntityDialog from '../components/EntityDialog.vue'
 import { usePaged } from '../composables/paged'
 import { exportCsv } from '../store/csv'
 import { state, save, ENTITY_STATUS, COMPANY_TYPES, companyTypes } from '../store/db'
+import { can } from '../store/api'
 import { companyFields, DEFAULTS, upsert } from '../store/forms'
 
 const router = useRouter(), route = useRoute()
-const typeFilter = computed({ get: () => route.query.type || 'hauler', set: (type) => router.replace({ path: '/companies', query: { type } }) })
-const isHaulerView = computed(() => typeFilter.value === 'hauler')
+const typeFilter = computed({ get: () => route.query.type || 'transport', set: (type) => router.replace({ path: '/companies', query: { type } }) })
+const isTransportView = computed(() => typeFilter.value === 'transport')
 const q = ref(''), status = ref('')
 const counts = computed(() => {
   const m = {}
@@ -72,7 +73,7 @@ function download() {
 const dlg = ref(false), current = ref(null)
 function edit(row) { current.value = row; dlg.value = true }
 async function toggle(row) {
-  if (row.status === 'active') { try { await ElMessageBox.confirm(`Deactivate hauler "${row.name}"? Its drivers will not be able to start new jobs.`, 'Deactivate', { type: 'warning' }) } catch { return } }
+  if (row.status === 'active') { try { await ElMessageBox.confirm(`Deactivate transport company "${row.name}"? Its drivers will not be able to start new jobs.`, 'Deactivate', { type: 'warning' }) } catch { return } }
   row.status = row.status === 'active' ? 'inactive' : 'active'
   save()
 }

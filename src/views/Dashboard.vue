@@ -21,7 +21,7 @@
     <el-row :gutter="12" class="row">
       <el-col :span="16">
         <div class="card">
-          <div class="card-head"><h3>Pump-outs · last 14 days</h3><span class="muted">bars = jobs per hauler · line = volume (L)</span></div>
+          <div class="card-head"><h3>Pump-outs · last 14 days</h3><span class="muted">bars = jobs per transport company · line = volume (L)</span></div>
           <Chart :option="trendOption" :height="300" />
         </div>
       </el-col>
@@ -49,19 +49,20 @@
               <el-check-tag v-if="typeCount[t]" :checked="alertType === t" @change="alertType = alertType === t ? '' : t">{{ l }} {{ typeCount[t] }}</el-check-tag>
             </template>
           </div>
+          <div class="chips" style="margin-bottom: 8px"><SeverityChips v-model="alertSeverity" :items="byType" /></div>
           <div class="scroll"><AlertList :items="shownAlerts" /></div>
         </div>
       </el-col>
       <el-col :span="12">
         <div class="card">
-          <div class="card-head"><h3>Overdue devices by hauler</h3><span class="muted">split by how long overdue</span></div>
+          <div class="card-head"><h3>Overdue devices by transport company</h3><span class="muted">split by how long overdue</span></div>
           <Chart :option="overdueOption" :height="200" @click="(e) => router.push({ path: '/devices', query: { overdue: '1', company: e.data?.companyId || 'none' } })" />
         </div>
         <el-row :gutter="12" class="row">
           <el-col :span="12">
             <div class="card">
-              <div class="card-head"><h3>Volume by hauler</h3><span class="muted">14 days</span></div>
-              <Chart :option="haulerOption" :height="220" />
+              <div class="card-head"><h3>Volume by transport company</h3><span class="muted">14 days</span></div>
+              <Chart :option="transportOption" :height="220" />
             </div>
           </el-col>
           <el-col :span="12">
@@ -105,7 +106,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Chart from '../components/Chart.vue'
 import AlertList from '../components/AlertList.vue'
-import { state, haulers, nameOf, isOverdue, overdueDays, nextService, fmtTime, fmtL, traceForward } from '../store/db'
+import SeverityChips from '../components/SeverityChips.vue'
+import { state, transports, nameOf, isOverdue, overdueDays, nextService, fmtTime, fmtL, traceForward } from '../store/db'
 import { activeAlerts, ALERT_TYPES, SEVERITY } from '../store/alerts'
 
 const router = useRouter()
@@ -177,7 +179,7 @@ const stats = computed(() => {
 // ---------- 14-day trend ----------
 const trendOption = computed(() => {
   const idxOf = (s) => Math.floor((new Date(s).getTime() - days[0].getTime()) / DAY)
-  const companies = haulers.value.filter((c) => done14.value.some((p) => p.companyId === c.id))
+  const companies = transports.value.filter((c) => done14.value.some((p) => p.companyId === c.id))
   const vol = Array(14).fill(0)
   const series = companies.map((c, i) => {
     const data = Array(14).fill(0)
@@ -244,7 +246,7 @@ function onCompliance(e) {
   else router.push({ path: '/devices', query: { status: 'Active' } })
 }
 
-// ---------- overdue by hauler ----------
+// ---------- overdue by transport ----------
 const overdueOption = computed(() => {
   const groups = new Map()
   for (const d of state.devices) {
@@ -256,7 +258,7 @@ const overdueOption = computed(() => {
     groups.set(key, g)
   }
   const keys = [...groups.keys()]
-  const label = (k) => (k === 'none' ? 'No hauler' : shortName(nameOf('companies', k)))
+  const label = (k) => (k === 'none' ? 'No transport company' : shortName(nameOf('companies', k)))
   const ser = (field, name, color) => ({
     name, type: 'bar', stack: 'od', barMaxWidth: 18, itemStyle: { color },
     data: keys.map((k) => ({ value: groups.get(k)[field], companyId: k === 'none' ? null : k }))
@@ -271,8 +273,8 @@ const overdueOption = computed(() => {
   }
 })
 
-// ---------- hauler / facility ----------
-const haulerOption = computed(() => {
+// ---------- transport / facility ----------
+const transportOption = computed(() => {
   const m = new Map()
   for (const p of done14.value) m.set(p.companyId, (m.get(p.companyId) || 0) + p.volume)
   return {
@@ -322,9 +324,11 @@ const flagOption = computed(() => {
 
 // ---------- alerts / recent ----------
 const alertType = ref('')
+const alertSeverity = ref('')
 const typeCount = computed(() => activeAlerts.value.reduce((m, a) => ((m[a.type] = (m[a.type] || 0) + 1), m), {}))
 const sevCount = computed(() => activeAlerts.value.reduce((m, a) => ((m[a.severity] = (m[a.severity] || 0) + 1), m), {}))
-const shownAlerts = computed(() => activeAlerts.value.filter((a) => !alertType.value || a.type === alertType.value).slice(0, 40))
+const byType = computed(() => activeAlerts.value.filter((a) => !alertType.value || a.type === alertType.value))
+const shownAlerts = computed(() => byType.value.filter((a) => !alertSeverity.value || a.severity === alertSeverity.value).slice(0, 40))
 const recent = computed(() => [...state.pickups].sort((a, b) => (b.endAt || b.startAt).localeCompare(a.endAt || a.startAt)).slice(0, 7))
 </script>
 <style scoped>

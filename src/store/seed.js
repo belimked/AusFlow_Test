@@ -17,12 +17,12 @@ function mulberry32(a) {
 export const normName = (s) => (s || '').replace(/\s+/g, ' ').trim()
 
 const COMPANIES = [
-  ['Cleanaway Waste Management Ltd Crestmead', '74 101 155 220', 'Michael Turner', '07 3802 1100', '12 Johnson Rd, Crestmead QLD 4132'],
-  ['JJ Richards Underwood', '13 000 943 812', 'Sarah Nguyen', '07 3341 2200', '3 Kingston Rd, Underwood QLD 4119'],
-  ['Pump-It Environmental Services', '56 128 334 902', 'David Kelly', '07 3271 3300', '27 Boundary Rd, Rocklea QLD 4106'],
-  ['REMONDIS Australia Pty Ltd', '78 002 688 158', 'Emma Wilson', '07 3277 4400', '58 Tile St, Wacol QLD 4076'],
-  ['Evoro', '41 615 002 377', 'James Patel', '07 3390 5500', '9 Lytton Rd, Hemmant QLD 4174'],
-  ["Lee's Environmental", '22 097 456 118', 'Olivia Chen', '07 3807 6600', '41 Mudgee St, Kingston QLD 4114']
+  ['Metro Liquid Waste Services', '74 101 155 220', 'Michael Turner', '07 3802 1100', '12 Johnson Rd, Crestmead QLD 4132'],
+  ['Riverside Environmental Pty Ltd', '13 000 943 812', 'Sarah Nguyen', '07 3341 2200', '3 Kingston Rd, Underwood QLD 4119'],
+  ['Apex Trade Waste Group', '56 128 334 902', 'David Kelly', '07 3271 3300', '27 Boundary Rd, Rocklea QLD 4106'],
+  ['Summit Liquid Services', '78 002 688 158', 'Emma Wilson', '07 3277 4400', '58 Tile St, Wacol QLD 4076'],
+  ['Clearflow Waste Solutions', '41 615 002 377', 'James Patel', '07 3390 5500', '9 Lytton Rd, Hemmant QLD 4174'],
+  ['Peninsula Pumping Co', '22 097 456 118', 'Olivia Chen', '07 3807 6600', '41 Mudgee St, Kingston QLD 4114']
 ]
 const FIRST = ['Jack', 'Liam', 'Noah', 'Ethan', 'Lucas', 'Mason', 'Chloe', 'Ruby', 'Mia', 'Ava', 'Ben', 'Tom', 'Sam', 'Josh', 'Ryan', 'Ella', 'Zoe', 'Luke', 'Matt', 'Dylan', 'Kyle', 'Grace', 'Isla', 'Harry']
 const LAST = ['Smith', 'Jones', 'Brown', 'Taylor', 'Martin', 'Walker', 'Harris', 'Lewis', 'Young', 'King', 'Wright', 'Scott', 'Green', 'Baker', 'Hall', 'Allen']
@@ -45,7 +45,7 @@ export function buildSeed() {
   const iso = (t) => new Date(t).toISOString()
 
   const companies = COMPANIES.map(([name, abn, contact, phone, address]) => ({
-    id: id('CO'), name, abn, contact, phone, address, status: 'active', types: '["hauler"]'
+    id: id('CO'), name, abn, contact, phone, address, status: 'active', types: '["transport"]'
   }))
   const companyByName = new Map(companies.map((c) => [c.name, c]))
 
@@ -71,10 +71,26 @@ export function buildSeed() {
   }
 
   // Deterministic company roles and location relationships.
-  for (let i = 0; i < 10; i++) companies.push({ id: id('CO'), name: `${['Bayside', 'Riverbank', 'Moreton', 'Southside', 'Cedar', 'Harbour', 'Acacia', 'Greenfield', 'Northgate', 'Sunshine'][i]} Property Group Pty Ltd`, status: 'active', types: '["owner"]' })
-  for (let i = 0; i < 15; i++) companies.push({ id: id('CO'), name: `${locations[i]?.name || 'Brisbane'} Operations ${i + 1} Pty Ltd`, status: 'active', types: '["occupier"]' })
+  const propertyGroups = ['Bayside', 'Riverbank', 'Moreton', 'Southside', 'Cedar', 'Harbour', 'Acacia', 'Greenfield', 'Northgate', 'Sunshine']
+    .map((n) => ({ id: id('CO'), name: `${n} Property Group Pty Ltd`, status: 'active', types: '["owner"]' }))
+  companies.push(...propertyGroups)
+  const others = ['Riverland State School', 'Brookfield Shire Council', "St Augustine's College", 'Meadowbrook Community Trust', 'Kingsford City Council']
+    .map((n) => ({ id: id('CO'), name: n, status: 'active', types: '["owner"]' }))
+  companies.push(...others)
   companies.push({ id: id('CO'), name: 'Urban Utilities', status: 'active', types: '["authority"]' })
-  locations.forEach((l, i) => { l.ownerId = i % 5 < 3 ? companies[6 + i % 10].id : null; l.occupierId = i % 5 < 2 ? companies[16 + i % 15].id : null })
+  locations.forEach((l, i) => {
+    l.ownerId = i % 3 === 0 ? propertyGroups[i % propertyGroups.length].id : null
+    if (i % 7 === 0) { l.occupierId = null; return }
+    const occ = { id: id('CO'), name: `${l.name} Pty Ltd`, status: 'active', types: '["occupier"]' }
+    companies.push(occ)
+    l.occupierId = occ.id
+  })
+  const locById = new Map(locations.map((l) => [l.id, l]))
+  let othersIdx = 0
+  for (const d of devices) {
+    const l = locById.get(d.locationId)
+    d.ownerId = l?.occupierId || l?.ownerId || others[othersIdx++ % others.length].id
+  }
 
   const drivers = [], vehicles = [], facilities = []
   companies.slice(0, 6).forEach((c, ci) => {
@@ -173,7 +189,7 @@ export function buildSeed() {
         const endT = t + between(20, 50) * MIN
         if (endT > now || !load.get(v.id)) continue
         const [lat, lng] = [-27.47 + between(-0.08, 0.08), 153.03 + between(-0.1, 0.1)]
-        if (v.type === 'small' && large && (!loadWaste.has(large.id) || loadWaste.get(large.id) === loadWaste.get(v.id)) && rnd() < 0.4) {
+        if (v.type === 'small' && large && (!loadWaste.has(large.id) || loadWaste.get(large.id) === loadWaste.get(v.id)) && load.get(large.id) + load.get(v.id) <= large.tank && rnd() < 0.4) {
           transfers.push({ id: '', companyId: c.id, driverId: driver.id, fromVehicleId: v.id, toVehicleId: large.id, volume: load.get(v.id), at: iso(endT), lat, lng })
           load.set(large.id, load.get(large.id) + load.get(v.id))
           loadWaste.set(large.id, loadWaste.get(v.id))
@@ -221,6 +237,11 @@ export function buildSeed() {
     vehicles.push(v)
     return v
   }
+  const bigTruck = (tank) => {
+    const v = { id: id('VE'), companyId: co.id, plate: `${Math.floor(between(100, 999))} ${code(3)}`, type: 'large', tank, qr: 'VH' + code(10), status: 'active' }
+    vehicles.push(v)
+    return v
+  }
   const job = (v, d, volume, hoursAgo) => {
     const end = now - hoursAgo * HOUR
     pickups.push({ id: '', deviceId: d.id, locationId: d.locationId, companyId: co.id, driverId: driver.id, vehicleId: v.id,
@@ -229,6 +250,8 @@ export function buildSeed() {
   }
   const discharge = (v, volume, hoursAgo, waste = '') => unloads.push({ id: '', companyId: co.id, driverId: driver.id,
     vehicleId: v.id, facilityId: facility.id, volume, waste, at: iso(now - hoursAgo * HOUR), lat: facility.lat, lng: facility.lng })
+  const xfer = (from, to, volume, hoursAgo, point) => transfers.push({ id: '', companyId: co.id, driverId: driver.id,
+    fromVehicleId: from.id, toVehicleId: to.id, volume, at: iso(now - hoursAgo * HOUR), lat: point.lat, lng: point.lng })
   if (devs.length >= 2) {
     const a = devs.find((d) => normName(d.waste).toLowerCase() === 'grease trap waste') || devs[0]
     const b = devs.find((d) => d.id !== a.id)
@@ -243,6 +266,17 @@ export function buildSeed() {
     const daily = truck(4000), d = devs.find((x) => x.capacity <= 2500) || a
     job(daily, d, Math.round(d.capacity * 0.7), 1.5)
     job(daily, d, Math.round(d.capacity * 0.7), 1)
+    // Transfer exceeds receiving capacity: a partly loaded large truck receives more than it can hold.
+    const bigA = bigTruck(15000)
+    job(bigA, a, 14000, 12)
+    const feederA = truck(4000)
+    job(feederA, a, 3000, 11)
+    xfer(feederA, bigA, 3000, 10, a)
+    const bigB = bigTruck(20000)
+    job(bigB, b, 19000, 9)
+    const feederB = truck(4000)
+    job(feederB, b, 2500, 8)
+    xfer(feederB, bigB, 2500, 7, b)
   }
 
   pickups.sort((a, b) => a.startAt.localeCompare(b.startAt)).forEach((p) => (p.id = id('PK')))
