@@ -7,7 +7,10 @@ import 'leaflet/dist/leaflet.css'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import { can } from './store/api'
 
 const app = createApp(App)
+const applyCan = (el, { value }) => { if (!can(value)) el.style.display = 'none' }
+app.directive('can', { mounted: applyCan, updated: applyCan })
 for (const [name, comp] of Object.entries(Icons)) app.component(name, comp)
 app.use(ElementPlus, { locale: en }).use(router).mount('#app')

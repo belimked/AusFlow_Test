@@ -15,7 +15,7 @@
       </div>
       <div class="figures">
         <div><b>{{ stats.devices.toLocaleString() }}</b><span>devices</span></div>
-        <div><b>{{ stats.companies }}</b><span>licensed haulers</span></div>
+        <div><b>{{ stats.companies }}</b><span>licensed transport companies</span></div>
         <div><b>{{ stats.facilities }}</b><span>treatment facilities</span></div>
       </div>
     </div>
@@ -28,7 +28,7 @@
         <el-form-item label="Password"><el-input v-model="form.pass" type="password" show-password :prefix-icon="'Lock'" /></el-form-item>
         <el-button type="primary" native-type="submit" class="submit">Sign in</el-button>
       </el-form>
-      <p class="muted tip">Demo account: admin / admin123</p>
+      <p class="muted tip">Demo accounts: admin / admin123 (Admin) · ops01 / ops123 (Operations) · user01 / user123 (User)</p>
     </div>
     <div class="foot">Prototype · Queensland demo data</div>
   </div>

@@ -16,14 +16,16 @@ export const ALERT_TYPES = {
   capacity: 'Over capacity',
   nolocation: 'No location',
   vehicleFull: 'Vehicle near full', reportedIssue: 'Reported issue',
-  haulerBacklog: 'Hauler backlog',
+  transportBacklog: 'Transport backlog',
   pendingDriver: 'Driver pending approval',
   vehicleOverload: 'Vehicle overload', unloadOverTank: 'Unload over tank capacity',
-  devicePumpedOver: 'Device pumped over daily capacity', unloadDelayed: 'Delayed unload', wasteMismatch: 'Waste type mismatch'
+  devicePumpedOver: 'Device pumped over daily capacity', unloadDelayed: 'Delayed unload', wasteMismatch: 'Waste type mismatch',
+  transferOverCapacity: 'Transfer exceeds receiving capacity'
 }
-export const ALERT_CATEGORIES = { device: 'Device', vehicle: 'Hauler & vehicle', driver: 'Driver', suspicious: 'Suspicious activity' }
+export const ALERT_CATEGORIES = { device: 'Device', vehicle: 'Transport & vehicle', driver: 'Driver', suspicious: 'Suspicious activity' }
 const TYPE_CATEGORY = {
-  overdue: 'device', capacity: 'device', reportedIssue: 'device', vehicleFull: 'vehicle', haulerBacklog: 'vehicle',
+  overdue: 'device', capacity: 'device', reportedIssue: 'device', vehicleFull: 'vehicle', transportBacklog: 'vehicle',
+  transferOverCapacity: 'vehicle',
   longJob: 'driver', location: 'driver', nolocation: 'driver', pendingDriver: 'driver',
   vehicleOverload: 'suspicious', unloadOverTank: 'suspicious', devicePumpedOver: 'suspicious',
   unloadDelayed: 'suspicious', wasteMismatch: 'suspicious'
@@ -77,12 +79,12 @@ export const alerts = computed(() => {
   const overdueByCompany = new Map()
   for (const d of state.devices) {
     if (!isOverdue(d)) continue
-    if (d.companyId && idx.companies.value.get(d.companyId)?.types?.includes('hauler')) overdueByCompany.set(d.companyId, [...(overdueByCompany.get(d.companyId) || []), d])
+    if (d.companyId && idx.companies.value.get(d.companyId)?.types?.includes('transport')) overdueByCompany.set(d.companyId, [...(overdueByCompany.get(d.companyId) || []), d])
     const days = overdueDays(d)
     push('od:' + d.id + ':' + (d.lastService || ''), 'overdue', {
       severity: days >= 28 ? 'critical' : 'warning',
       title: `${d.ref} overdue for pump-out`,
-      detail: `${loc(d.locationId)} · ${overdueText(d)} · ${d.companyId ? nameOf('companies', d.companyId) : 'No hauler assigned'}`,
+      detail: `${loc(d.locationId)} · ${overdueText(d)} · ${d.companyId ? nameOf('companies', d.companyId) : 'No transport company assigned'}`,
       at: nextService(d), to: '/devices/' + d.id,
       refs: { deviceId: d.id, locationId: d.locationId, companyId: d.companyId },
       points: devicePoint(d)
@@ -123,7 +125,7 @@ export const alerts = computed(() => {
   for (const [companyId, list] of overdueByCompany) {
     if (list.length < BACKLOG_WARN) continue
     const oldest = list.reduce((a, b) => (nextService(a) < nextService(b) ? a : b))
-    push('hb:' + companyId, 'haulerBacklog', {
+    push('hb:' + companyId, 'transportBacklog', {
       severity: list.length >= BACKLOG_CRITICAL ? 'critical' : 'warning',
       title: `${nameOf('companies', companyId)} has ${list.length} overdue devices`,
       detail: `Oldest: ${oldest.ref} ${loc(oldest.locationId)} · ${overdueText(oldest)}`,
@@ -163,6 +165,39 @@ export const alerts = computed(() => {
       title: `Vehicle ${v.plate} ${c.endAt ? `took ${hours.toFixed(1)} h to unload` : `still not unloaded after ${hours.toFixed(1)} h`}`,
       detail: `${fmtL(c.inflow)} · ${nameOf('companies', v.companyId)}`,
       at: c.endAt || c.startAt, to: '/vehicles/' + v.id, refs, points: pickupPoints(c.pickups)
+    })
+  }
+  const ORDER = { pickup: 0, transferIn: 1, transfer: 2, unload: 3 }
+  const recvLoadBefore = new Map()
+  const loadEvents = [
+    ...state.pickups.filter((p) => p.status === 'done' && p.endAt).map((p) => ({ at: p.endAt, vehicleId: p.vehicleId, kind: 'pickup', vol: Number(p.volume) || 0, eid: p.id })),
+    ...state.transfers.flatMap((t) => [
+      { at: t.at, vehicleId: t.fromVehicleId, kind: 'transfer', vol: Number(t.volume) || 0, eid: t.id },
+      { at: t.at, vehicleId: t.toVehicleId, kind: 'transferIn', vol: Number(t.volume) || 0, eid: t.id }
+    ]),
+    ...state.unloads.map((u) => ({ at: u.at, vehicleId: u.vehicleId, kind: 'unload', vol: Number(u.volume) || 0, eid: u.id }))
+  ].sort((a, b) => a.at.localeCompare(b.at) || (ORDER[a.kind] - ORDER[b.kind]) || a.eid.localeCompare(b.eid))
+  const runningLoad = new Map()
+  for (const e of loadEvents) {
+    const cur = runningLoad.get(e.vehicleId) || 0
+    if (e.kind === 'pickup') runningLoad.set(e.vehicleId, cur + e.vol)
+    else if (e.kind === 'transferIn') { recvLoadBefore.set(e.eid, cur); runningLoad.set(e.vehicleId, cur + e.vol) }
+    else runningLoad.set(e.vehicleId, 0)
+  }
+  for (const t of state.transfers) {
+    if (!recent(t.at)) continue
+    const from = idx.vehicles.value.get(t.fromVehicleId)
+    const to = idx.vehicles.value.get(t.toVehicleId)
+    if (!to || from?.type !== 'small' || to.type !== 'large') continue
+    const remaining = to.tank - (recvLoadBefore.get(t.id) || 0)
+    if (remaining >= t.volume) continue
+    push('toc:' + t.id, 'transferOverCapacity', {
+      severity: 'critical',
+      title: `Transfer ${t.id}: ${fmtL(t.volume)} into ${to.plate} exceeds remaining capacity ${fmtL(remaining)}`,
+      detail: `${from?.plate || t.fromVehicleId} · ${nameOf('companies', t.companyId)}`,
+      at: t.at, to: '/vehicles/' + to.id,
+      refs: { transferId: t.id, vehicleId: to.id, companyId: t.companyId },
+      points: t.lat != null && t.lng != null ? [{ lat: t.lat, lng: t.lng, label: 'Transfer ' + t.id, color: '#f56c6c' }] : []
     })
   }
   const daily = new Map()

@@ -3,18 +3,18 @@
     <div class="card">
       <div class="toolbar">
         <el-input v-model="f.q" placeholder="Search name / phone / username" clearable :prefix-icon="'Search'" style="width: 270px" />
-        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 240px"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-select v-model="f.company" placeholder="Transport company" clearable filterable style="width: 240px"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         <el-radio-group v-model="f.status">
           <el-radio-button value="">All</el-radio-button>
           <el-radio-button v-for="(l, v) in DRIVER_STATUS" :key="v" :value="v">{{ l }}<template v-if="v === 'pending'"> ({{ pendingCount }})</template></el-radio-button>
         </el-radio-group>
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
-        <el-button type="primary" :icon="'Plus'" @click="edit(null)">Add driver</el-button>
+        <el-button v-can="'write'" type="primary" :icon="'Plus'" @click="edit(null)">Add driver</el-button>
       </div>
       <el-table @sort-change="onSort" :data="rows" stripe>
         <el-table-column label="Name" prop="name" sortable="custom" width="160" />
-        <el-table-column label="Hauler" prop="companyId" sortable="custom" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.companyId)">{{ nameOf('companies', row.companyId) }}</span></template></el-table-column>
+        <el-table-column label="Transport company" prop="companyId" sortable="custom" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.companyId)">{{ nameOf('companies', row.companyId) }}</span></template></el-table-column>
         <el-table-column label="Phone" prop="phone" sortable="custom" width="140" />
         <el-table-column label="Username" prop="account" sortable="custom" width="140" />
         <el-table-column label="Registered" prop="createdAt" sortable="custom" width="120"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
@@ -23,7 +23,7 @@
         <el-table-column label="Photos" width="90" align="center"><template #default="{ row }">
           <el-button link type="primary" :icon="'Picture'" @click="openPhotos(row)">{{ photoCounts[row.id] || 0 }}</el-button>
         </template></el-table-column>
-        <el-table-column label="Actions" width="190" fixed="right"><template #default="{ row }">
+        <el-table-column v-if="can('write')" label="Actions" width="190" fixed="right"><template #default="{ row }">
           <template v-if="row.status === 'pending'">
             <el-button link type="success" @click="setStatus(row, 'active', 'approved')">Approve</el-button>
             <el-button link type="danger" @click="reject(row)">Reject</el-button>
@@ -50,13 +50,13 @@ import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
 import { exportCsv } from '../store/csv'
-import { api } from '../store/api'
+import { api, can } from '../store/api'
 import { usePaged } from '../composables/paged'
-import { state, haulers, save, nameOf, fmtDate, DRIVER_STATUS } from '../store/db'
+import { state, transports, save, nameOf, fmtDate, DRIVER_STATUS } from '../store/db'
 import { driverFields, DEFAULTS, upsert } from '../store/forms'
 
 function download() {
-  exportCsv('drivers', sorted.value.map((d) => ({ Name: d.name, Hauler: nameOf('companies', d.companyId),
+  exportCsv('drivers', sorted.value.map((d) => ({ Name: d.name, 'Transport company': nameOf('companies', d.companyId),
     Phone: d.phone, Username: d.account, Registered: fmtDate(d.createdAt),
     'Jobs (14 days)': jobs.value.get(d.id) || 0, Status: DRIVER_STATUS[d.status], Photos: photoCounts[d.id] || 0 })))
 }

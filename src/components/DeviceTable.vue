@@ -18,7 +18,8 @@
       <el-table-column label="Last service" prop="lastService" sortable="custom" width="120"><template #default="{ row }">{{ fmtDate(row.lastService) }}</template></el-table-column>
       <el-table-column label="Next service" prop="nextService" sortable="custom" width="120"><template #default="{ row }"><span :class="{ red: isOverdue(row) }">{{ fmtDate(nextService(row)) }}</span></template></el-table-column>
       <el-table-column label="Overdue" prop="overdueDays" sortable="custom" width="105"><template #default="{ row }"><span class="red">{{ overdueText(row) }}</span></template></el-table-column>
-      <el-table-column v-if="!hideCompany" label="Responsible hauler" prop="companyId" sortable="custom" min-width="160" show-overflow-tooltip><template #default="{ row }">{{ row.companyId ? nameOf('companies', row.companyId) : '—' }}</template></el-table-column>
+      <el-table-column v-if="!hideCompany" label="Responsible transport company" prop="companyId" sortable="custom" min-width="160" show-overflow-tooltip><template #default="{ row }">{{ row.companyId ? nameOf('companies', row.companyId) : '—' }}</template></el-table-column>
+      <el-table-column label="Owner" prop="ownerId" sortable="custom" min-width="160" show-overflow-tooltip><template #default="{ row }"><span v-if="row.ownerId" class="link" @click="router.push('/companies/' + row.ownerId)">{{ nameOf('companies', row.ownerId) }}</span><span v-else>—</span></template></el-table-column>
       <el-table-column label="Status" prop="status" sortable="custom" width="100"><template #default="{ row }"><el-tag :type="STATUS_TAG[row.status]" size="small">{{ DEVICE_STATUS[row.status] || row.status }}</el-tag></template></el-table-column>
       <slot />
     </el-table>
@@ -40,7 +41,7 @@ const suburbMap = computed(() => new Map(state.locations.map((l) => [l.id, l.sub
 const suburbOf = (d) => suburbMap.value.get(d.locationId) || ''
 const { page, pageSize, rows: paged, sorted, onSort, total } = usePaged(toRef(props, 'rows'), 20, {
   tags: (d) => tagsOf(d)[0], suburb: suburbOf, nextService, overdueDays,
-  locationId: (d) => nameOf('locations', d.locationId), companyId: (d) => d.companyId ? nameOf('companies', d.companyId) : ''
+  locationId: (d) => nameOf('locations', d.locationId), companyId: (d) => d.companyId ? nameOf('companies', d.companyId) : '', ownerId: (d) => d.ownerId ? nameOf('companies', d.ownerId) : ''
 })
 const emit = defineEmits(['sorted'])
 watchEffect(() => emit('sorted', sorted.value))

@@ -4,12 +4,12 @@
       <div class="head">
         <b>{{ label }}</b><span class="muted">({{ byKind(kind).length }})</span>
         <span style="flex: 1" />
-        <el-button v-if="!readonly" size="small" :icon="'Upload'" :loading="uploading === kind" @click="pick(kind)">Upload</el-button>
+        <el-button v-if="!readonly && can('write')" size="small" :icon="'Upload'" :loading="uploading === kind" @click="pick(kind)">Upload</el-button>
       </div>
       <div v-if="byKind(kind).length" class="grid">
         <div v-for="(p, i) in byKind(kind)" :key="p.id" class="thumb">
           <el-image :src="p.dataUrl" fit="cover" :preview-src-list="byKind(kind).map((x) => x.dataUrl)" :initial-index="i" preview-teleported hide-on-click-modal />
-          <el-icon v-if="!readonly" class="del" title="Delete photo" @click="remove(p)"><Delete /></el-icon>
+          <el-icon v-if="!readonly && can('write')" class="del" title="Delete photo" @click="remove(p)"><Delete /></el-icon>
           <div class="meta" :title="`${p.name} · ${p.user} · ${fmtTime(p.at)}`">{{ fmtDate(p.at) }}</div>
         </div>
       </div>
@@ -21,7 +21,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { api } from '../store/api'
+import { api, can } from '../store/api'
 import { fmtDate, fmtTime } from '../store/db'
 
 // type: 'device' | 'company' | 'vehicle' | 'driver'; kinds: { kindKey: label }, must match the server's PHOTO_KINDS

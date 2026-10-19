@@ -2,14 +2,17 @@
   <div class="inline-field" :class="{ editing }">
     <template v-if="!editing">
       <div class="value"><slot /></div>
-      <el-tooltip :content="`Edit ${label}`" placement="top" :show-after="400">
+      <el-tooltip v-if="can('write')" :content="`Edit ${label}`" placement="top" :show-after="400">
         <el-icon class="pen" @click="start"><EditPen /></el-icon>
       </el-tooltip>
     </template>
     <div v-else class="editor">
       <el-select-v2 v-if="kind === 'location'" v-model="value" :options="locationOptions" filterable style="width: 100%" />
-      <el-select v-else-if="kind === 'company'" v-model="value" clearable filterable placeholder="No hauler" style="width: 100%">
-        <el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" />
+      <el-select v-else-if="kind === 'company'" v-model="value" clearable filterable placeholder="No transport company" style="width: 100%">
+        <el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" />
+      </el-select>
+      <el-select v-else-if="kind === 'owner'" v-model="value" clearable filterable placeholder="No owner" style="width: 100%">
+        <el-option v-for="c in owners" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
       <el-select v-else-if="kind === 'status'" v-model="value" style="width: 100%">
         <el-option v-for="(l, v) in DEVICE_STATUS" :key="v" :label="l" :value="v" />
@@ -32,16 +35,18 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
-import { state, haulers, updateDevice, DEVICE_STATUS, DEVICE_FIELDS } from '../store/db'
+import { state, transports, updateDevice, DEVICE_STATUS, DEVICE_FIELDS, isTransport } from '../store/db'
+import { can } from '../store/api'
 
 // field: a DEVICE_FIELDS key, or 'coords' for the lat/lng pair
 const props = defineProps({ device: { type: Object, required: true }, field: { type: String, required: true } })
 
 const KINDS = {
-  locationId: 'location', companyId: 'company', status: 'status', type: 'choice', waste: 'choice', risk: 'choice',
+  locationId: 'location', companyId: 'company', ownerId: 'owner', status: 'status', type: 'choice', waste: 'choice', risk: 'choice',
   capacity: 'number', freqWeeks: 'number', lastService: 'datetime', locationDesc: 'textarea', comments: 'textarea', coords: 'coords'
 }
 const kind = computed(() => KINDS[props.field] || 'text')
+const owners = computed(() => state.companies.filter((c) => !isTransport(c)))
 const label = computed(() => props.field === 'coords' ? 'coordinates' : (DEVICE_FIELDS[props.field] || props.field).toLowerCase())
 const choices = computed(() => props.field === 'risk'
   ? ['0', '1', '2', '3', '4', '5', '6', '7']
@@ -62,7 +67,7 @@ function commit() {
   if (props.field === 'coords') patch = { lat: value.value.lat ?? null, lng: value.value.lng ?? null }
   else if (kind.value === 'number') patch = { [props.field]: value.value ?? 0 }
   else if (kind.value === 'datetime') patch = { [props.field]: value.value ? new Date(value.value).toISOString() : null }
-  else if (kind.value === 'company') patch = { [props.field]: value.value || null }
+  else if (kind.value === 'company' || kind.value === 'owner') patch = { [props.field]: value.value || null }
   else patch = { [props.field]: typeof value.value === 'string' ? value.value.trim() : value.value }
   if (props.field === 'locationId' && !patch.locationId) return ElMessage.warning('Please select a location')
   const n = updateDevice(props.device.id, patch, 'Web')

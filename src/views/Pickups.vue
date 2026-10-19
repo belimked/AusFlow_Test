@@ -3,7 +3,7 @@
     <div class="card">
       <div class="toolbar">
         <el-input v-model="f.q" placeholder="ID / Device Ref / Location" clearable :prefix-icon="'Search'" style="width: 245px" />
-        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 220px"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-select v-model="f.company" placeholder="Transport company" clearable filterable style="width: 220px"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         <el-select v-model="f.driver" placeholder="Driver" clearable filterable style="width: 150px"><el-option v-for="d in drivers" :key="d.id" :label="d.name" :value="d.id" /></el-select>
         <el-select v-model="f.flag" placeholder="Flags" clearable style="width: 165px">
           <el-option label="Location mismatch" value="location" /><el-option label="Over capacity" value="capacity" /><el-option label="No location" value="nolocation" /><el-option label="Any flag" value="any" />
@@ -23,7 +23,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PickupTable from '../components/PickupTable.vue'
-import { state, haulers, nameOf, plateOf, fmtL, fmtM, fmtTime, pickupDeliveries } from '../store/db'
+import { state, transports, nameOf, plateOf, fmtL, fmtM, fmtTime, pickupDeliveries } from '../store/db'
 import { wasteCodeOf } from '../store/wasteCodes'
 
 import { warningsFor, isActive } from '../store/alerts'
@@ -35,7 +35,7 @@ const sorted = ref(null)
 function download() {
   exportCsv('pickups', (sorted.value || filtered.value).map((p) => ({
     ID: p.id, 'Device / Location': `${p.deviceId} ${nameOf('locations', p.locationId)}`,
-    Hauler: nameOf('companies', p.companyId), Driver: nameOf('drivers', p.driverId), Vehicle: plateOf(p.vehicleId),
+    'Transport company': nameOf('companies', p.companyId), Driver: nameOf('drivers', p.driverId), Vehicle: plateOf(p.vehicleId),
     'Waste type': p.waste || '', 'Waste code': wasteCodeOf(p.waste), 'Delivery status': pickupDeliveries.value.get(p.id)?.status,
     Destination: pickupDeliveries.value.get(p.id)?.facilityId ? nameOf('facilities', pickupDeliveries.value.get(p.id).facilityId) : `Pending (${plateOf(pickupDeliveries.value.get(p.id)?.vehicleId)})`, Volume: fmtL(p.volume), Time: fmtTime(p.endAt || p.startAt), 'Distance from device': fmtM(p.distance),
     'Active warnings': warnCount(p.id), 'Flags / Status': p.status === 'ongoing' ? 'In progress' : p.flags.join(', ')

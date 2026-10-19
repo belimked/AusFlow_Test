@@ -15,6 +15,20 @@ Sign in with `admin / admin123`. An empty database is filled with demo data on f
 
 `npm run dev:cf` runs the real Cloudflare runtime locally instead (needs glibc >= 2.35).
 
+## Ops mailbox and tickets
+
+Emails to the ops mailbox (a cloudflare_temp_email address) become tickets: JEV (`POST /v1/systemone`) classifies them as critical / normal / low, they are assigned to the active Operations user with the fewest open tickets, and that user is emailed if they have an email address. Settings (in `.dev.vars` locally, Pages secrets in production):
+
+| Variable | Meaning |
+| --- | --- |
+| `JEV_API_URL`, `JEV_MODEL`, `JEV_API_KEYS` | JEV endpoint, model (`jev-latest`), comma-separated keys (tried in turn) |
+| `MAIL_API_URL` | Mail API, e.g. `https://apimail.saulxj.ggff.net` |
+| `MAIL_ADDRESS_JWT` | Address JWT of the ops mailbox (admin panel → address → credential) |
+| `MAIL_POLL_MINUTES` | Node server poll interval, `0` disables (default 5) |
+| `CRON_SECRET` | Shared secret for `POST /api/mailbox/poll` from the cron Worker |
+
+`npm run dev:api` polls the mailbox itself. Cloudflare Pages has no cron, so deploy the small Worker in `cron/` (set `APP_URL` in `cron/wrangler.toml`, then `npx wrangler secret put CRON_SECRET --config cron/wrangler.toml` and `npx wrangler deploy --config cron/wrangler.toml`). Sending notifications uses the mailbox's send balance (set it in the mail admin panel → sender access).
+
 ## Schema changes
 
 Edit `server/schema.js`, then `npm run db:generate` and commit the new file in `migrations/`.

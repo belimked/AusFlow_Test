@@ -1,7 +1,7 @@
 import { reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { buildSeed } from './seed'
-import { api, currentUser } from './api'
+import { api, currentUser, can } from './api'
 
 const DAY = 864e5
 export let CURRENT_USER = ''
@@ -48,6 +48,7 @@ async function flush() {
 }
 
 export function save() {
+  if (!can('write')) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => { queue = queue.then(flush) }, 300)
 }
@@ -92,10 +93,10 @@ export const idx = {
   drivers: indexOf('drivers'), vehicles: indexOf('vehicles'), facilities: indexOf('facilities'),
   pickups: indexOf('pickups')
 }
-export const companyTypes = (c) => { try { return Array.isArray(c?.types) ? c.types : JSON.parse(c?.types || '["hauler"]') } catch { return ['hauler'] } }
-export const isHauler = (c) => companyTypes(c).includes('hauler')
-export const haulers = computed(() => state.companies.filter(isHauler))
-export const COMPANY_TYPES = { hauler: 'Hauler', owner: 'Owner', occupier: 'Occupier', facility_operator: 'Facility operator', authority: 'Authority' }
+export const companyTypes = (c) => { try { return Array.isArray(c?.types) ? c.types : JSON.parse(c?.types || '["transport"]') } catch { return ['transport'] } }
+export const isTransport = (c) => companyTypes(c).includes('transport')
+export const transports = computed(() => state.companies.filter(isTransport))
+export const COMPANY_TYPES = { transport: 'Transport company', owner: 'Owner', occupier: 'Occupier', facility_operator: 'Facility operator', authority: 'Authority' }
 export const INSPECTION_RESULTS = { compliant: 'Compliant', non_compliant: 'Non-compliant', follow_up: 'Follow-up required' }
 export const ISSUE_CATEGORIES = { baffle_damaged: 'Baffle damaged', no_washdown_tap: 'No wash-down tap', premises_closed: 'Premises closed / renovating', no_access: 'No access', qr_missing: 'QR tag missing', other: 'Other' }
 export const nameOf = (key, id) => idx[key].value.get(id)?.name ?? (id ? id : '—')
@@ -111,7 +112,7 @@ export const VEHICLE_TYPE = { small: 'Small truck', large: 'Large truck' }
 export const DEVICE_FIELDS = {
   locationId: 'Location', ref: 'Device Ref', aka: 'Device name', status: 'Status', type: 'Device type', waste: 'Waste type',
   capacity: 'Capacity (L)', freqWeeks: 'Service frequency (weeks)', lastService: 'Last service', approvalCategory: 'Approval category', risk: 'Risk rating',
-  locationDesc: 'Location description', companyId: 'Responsible hauler', qr: 'QR code', tags: 'Tag ID', lat: 'Latitude', lng: 'Longitude', comments: 'Comments'
+  locationDesc: 'Location description', companyId: 'Responsible transport company', ownerId: 'Owner', qr: 'QR code', tags: 'Tag ID', lat: 'Latitude', lng: 'Longitude', comments: 'Comments'
 }
 
 // ---------- service date (W09) ----------
@@ -146,7 +147,7 @@ export function distanceM(lat1, lng1, lat2, lng2) {
 function displayValue(field, v) {
   if (v == null || v === '') return ''
   if (field === 'locationId') return nameOf('locations', v)
-  if (field === 'companyId') return nameOf('companies', v)
+  if (field === 'companyId' || field === 'ownerId') return nameOf('companies', v)
   if (field === 'status') return DEVICE_STATUS[v] || v
   if (field === 'lastService') return fmtDate(v)
   return String(v)

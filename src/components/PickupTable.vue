@@ -5,7 +5,7 @@
       <el-table-column v-if="!hideDevice" label="Device / Location" prop="deviceId" sortable="custom" min-width="200" show-overflow-tooltip>
         <template #default="{ row }"><span class="link" @click="router.push('/devices/' + row.deviceId)">{{ row.deviceId }}</span> {{ nameOf('locations', row.locationId) }}</template>
       </el-table-column>
-      <el-table-column v-if="!hideCompany" label="Hauler" prop="companyId" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
+      <el-table-column v-if="!hideCompany" label="Transport company" prop="companyId" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
       <el-table-column label="Driver" prop="driverId" sortable="custom" width="110" show-overflow-tooltip><template #default="{ row }">{{ nameOf('drivers', row.driverId) }}</template></el-table-column>
       <el-table-column v-if="!hideVehicle" label="Vehicle" prop="vehicleId" sortable="custom" width="86"><template #default="{ row }"><span class="link" @click="router.push('/vehicles/' + row.vehicleId)">{{ plateOf(row.vehicleId) }}</span></template></el-table-column>
       <el-table-column label="Waste type" prop="waste" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }"><WasteType :text="row.waste" /></template></el-table-column>

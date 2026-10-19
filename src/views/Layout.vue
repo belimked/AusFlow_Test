@@ -6,21 +6,22 @@
         <el-menu-item index="/dashboard"><el-icon><House /></el-icon>Dashboard</el-menu-item>
         <el-menu-item index="/alerts"><el-icon><Bell /></el-icon>Alerts
           <span v-if="unreadCount" class="menu-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span></el-menu-item>
+        <el-menu-item index="/tickets"><el-icon><Message /></el-icon>Ops Tickets</el-menu-item>
         <el-menu-item index="/locations"><el-icon><Location /></el-icon>Locations</el-menu-item>
         <el-sub-menu index="dev">
           <template #title><el-icon><Box /></el-icon>Devices</template>
           <el-menu-item index="/devices">Device List</el-menu-item>
           <el-menu-item index="/inspections">Inspections</el-menu-item>
           <el-menu-item index="/tags">Device Tags</el-menu-item>
-          <el-menu-item index="/import">CSV Import</el-menu-item>
+          <el-menu-item v-if="can('write')" index="/import">CSV Import</el-menu-item>
           <el-menu-item index="/change-logs">Change Log</el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="allco"><template #title><el-icon><OfficeBuilding /></el-icon>Companies</template>
           <el-menu-item index="/companies?type=all">All companies</el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="co">
-          <template #title><el-icon><Van /></el-icon>Haulers</template>
-          <el-menu-item index="/companies">Haulers</el-menu-item>
+          <template #title><el-icon><Van /></el-icon>Transport companies</template>
+          <el-menu-item index="/companies">Transport companies</el-menu-item>
           <el-menu-item index="/drivers">Drivers</el-menu-item>
           <el-menu-item index="/vehicles">Vehicles</el-menu-item>
         </el-sub-menu>
@@ -32,6 +33,7 @@
           <el-menu-item index="/trace">Waste Tracking</el-menu-item>
         </el-sub-menu>
         <el-menu-item index="/facilities"><el-icon><OfficeBuilding /></el-icon>Facilities</el-menu-item>
+        <el-menu-item v-if="can('admin')" index="/users"><el-icon><UserFilled /></el-icon>Users &amp; Roles</el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -40,9 +42,10 @@
         <span class="spacer" />
         <el-tag type="warning" effect="plain">Prototype · shared demo data</el-tag>
         <AlertBell />
-        <el-button size="small" :icon="'RefreshLeft'" @click="reset">Reset demo data</el-button>
+        <el-tag v-if="!can('write')" type="info" effect="plain">Read-only</el-tag>
+        <el-button v-if="can('admin')" size="small" :icon="'RefreshLeft'" @click="reset">Reset demo data</el-button>
         <el-dropdown @command="logout">
-          <span class="user"><el-icon><User /></el-icon>{{ user }}</span>
+          <span class="user"><el-icon><User /></el-icon>{{ user }}<span class="muted"> · {{ ROLE_LABELS[roleOf()] }}</span></span>
           <template #dropdown><el-dropdown-menu><el-dropdown-item command="logout">Sign out</el-dropdown-item></el-dropdown-menu></template>
         </el-dropdown>
       </el-header>
@@ -58,7 +61,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { resetDemo } from '../store/db'
-import { currentUser, logout as signOut } from '../store/api'
+import { currentUser, logout as signOut, can, roleOf, ROLE_LABELS } from '../store/api'
 import { unreadCount } from '../store/alerts'
 import AlertBell from '../components/AlertBell.vue'
 import AlertDialog from '../components/AlertDialog.vue'

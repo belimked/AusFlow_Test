@@ -2,7 +2,7 @@
   <div class="page">
     <div class="card">
       <div class="toolbar">
-        <el-select v-model="f.company" placeholder="Hauler" clearable filterable style="width: 220px"><el-option v-for="c in haulers" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        <el-select v-model="f.company" placeholder="Transport company" clearable filterable style="width: 220px"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
         <el-input v-model="f.plate" placeholder="Plate" clearable style="width: 140px" />
         <el-date-picker v-model="f.range" type="daterange" start-placeholder="Start" end-placeholder="End" style="width: 260px" />
       </div>
@@ -17,12 +17,12 @@ import { ref, reactive, computed } from 'vue'
 import TransferTable from '../components/TransferTable.vue'
 import OpDrawer from '../components/OpDrawer.vue'
 import { exportCsv } from '../store/csv'
-import { state, haulers, plateOf, nameOf, fmtL, fmtTime } from '../store/db'
+import { state, transports, plateOf, nameOf, fmtL, fmtTime } from '../store/db'
 
 const cur = ref(null), table = ref(null)
 function download() {
   exportCsv('transfers', (table.value?.sorted || filtered.value).map((t) => ({
-    ID: t.id, Hauler: nameOf('companies', t.companyId), Driver: nameOf('drivers', t.driverId),
+    ID: t.id, 'Transport company': nameOf('companies', t.companyId), Driver: nameOf('drivers', t.driverId),
     'From vehicle': plateOf(t.fromVehicleId), 'To vehicle': plateOf(t.toVehicleId), Volume: fmtL(t.volume),
     Time: fmtTime(t.at), Location: `${t.lat?.toFixed(5) ?? ''}, ${t.lng?.toFixed(5) ?? ''}`
   })))

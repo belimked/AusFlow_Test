@@ -6,14 +6,14 @@
       <el-tag>{{ VEHICLE_TYPE[v.type] }}</el-tag>
       <el-tag :type="v.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[v.status] }}</el-tag>
       <span style="flex: 1" />
-      <el-button :icon="'Edit'" @click="dlg = true">Edit</el-button>
+      <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
     </h2>
     <el-row :gutter="12">
       <el-col :span="16">
         <div class="card">
           <el-descriptions :column="2" border>
             <el-descriptions-item label="Plate">{{ v.plate }}</el-descriptions-item>
-            <el-descriptions-item label="Hauler"><span class="link" @click="router.push('/companies/' + v.companyId)">{{ nameOf('companies', v.companyId) }}</span></el-descriptions-item>
+            <el-descriptions-item label="Transport company"><span class="link" @click="router.push('/companies/' + v.companyId)">{{ nameOf('companies', v.companyId) }}</span></el-descriptions-item>
             <el-descriptions-item label="Truck type">{{ VEHICLE_TYPE[v.type] }}</el-descriptions-item>
             <el-descriptions-item label="Tank capacity">{{ fmtL(v.tank) }}</el-descriptions-item>
           </el-descriptions>

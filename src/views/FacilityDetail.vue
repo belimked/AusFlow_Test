@@ -5,7 +5,7 @@
       {{ fa.name }}
       <el-tag :type="fa.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[fa.status] }}</el-tag>
       <span style="flex: 1" />
-      <el-button :icon="'Edit'" @click="dlg = true">Edit</el-button>
+      <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
     </h2>
     <el-row :gutter="12">
       <el-col :span="10">

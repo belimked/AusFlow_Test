@@ -2,7 +2,17 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { eq, and, desc, inArray, sql, count, getTableColumns } from 'drizzle-orm'
 import * as s from './schema.js'
-import { verifyPassword, signToken, verifyToken } from './auth.js'
+import { verifyPassword, hashPassword, signToken, verifyToken } from './auth.js'
+import { ingestEmail, PRIORITIES, TICKET_STATUS } from './tickets.js'
+import { pollMailbox, mailboxStatus, notifyAssignee } from './mailbox.js'
+
+export const ROLES = ['admin', 'ops', 'user']
+const requireRole = (...roles) => async (c, next) => {
+  if (!roles.includes(c.var.user.role)) throw new HTTPException(403, { message: 'You do not have permission for this action' })
+  await next()
+}
+const canWrite = requireRole('admin', 'ops')
+const publicUser = ({ passwordHash, ...u }) => u
 
 export const TABLES = {
   companies: s.companies, locations: s.locations, devices: s.devices, drivers: s.drivers, vehicles: s.vehicles,
@@ -73,7 +83,7 @@ export function createApp(setup) {
       throw new HTTPException(401, { message: 'Invalid username or password' })
     }
     const token = await signToken({ sub: user.id, name: user.displayName, role: user.role }, c.var.secret)
-    return c.json({ token, user: { username: user.username, displayName: user.displayName, role: user.role } })
+    return c.json({ token, user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role } })
   })
 
   app.get('/public/stats', async (c) => {
@@ -86,10 +96,27 @@ export function createApp(setup) {
     return c.json({ devices: d.n, companies: co.n, facilities: f.n })
   })
 
+  // Called by the cron trigger with x-cron-secret, or by signed-in admin/ops users.
+  app.post('/mailbox/poll', async (c) => {
+    const secret = c.var.mail.cronSecret
+    const viaCron = secret && c.req.header('x-cron-secret') === secret
+    if (!viaCron) {
+      const user = await verifyToken((c.req.header('Authorization') || '').replace(/^Bearer /, ''), c.var.secret)
+      if (!user) throw new HTTPException(401, { message: 'Not signed in' })
+      if (!['admin', 'ops', 'authority'].includes(user.role)) throw new HTTPException(403, { message: 'You do not have permission for this action' })
+    }
+    try {
+      return c.json(await pollMailbox(c.var.db, c.var.jev, c.var.mail))
+    } catch (e) {
+      throw new HTTPException(502, { message: e.message })
+    }
+  })
+
   app.use('*', async (c, next) => {
     const token = (c.req.header('Authorization') || '').replace(/^Bearer /, '')
     const user = await verifyToken(token, c.var.secret)
     if (!user) throw new HTTPException(401, { message: 'Not signed in' })
+    if (user.role === 'authority') user.role = 'admin'
     c.set('user', user)
     await next()
   })
@@ -104,7 +131,7 @@ export function createApp(setup) {
     return c.json({ empty, seq: await readSeq(db), data })
   })
 
-  app.post('/sync', async (c) => {
+  app.post('/sync', canWrite, async (c) => {
     const db = c.var.db
     const { upserts = {}, deletes = {}, seq } = await c.req.json()
     const stmts = []
@@ -134,7 +161,7 @@ export function createApp(setup) {
     return c.json(Object.fromEntries(rows.map((r) => [r.id, r.n])))
   })
 
-  app.post('/photos', async (c) => {
+  app.post('/photos', canWrite, async (c) => {
     const { type, id, kind, name, dataUrl } = await c.req.json()
     if (!PHOTO_KINDS[type]?.includes(kind) || typeof id !== 'string' || !id) throw new HTTPException(400, { message: 'Invalid photo target' })
     if (typeof dataUrl !== 'string' || dataUrl.length > MAX_PHOTO_CHARS || !DATA_URL.test(dataUrl)) {
@@ -148,13 +175,144 @@ export function createApp(setup) {
     return c.json(row)
   })
 
-  app.delete('/photos/:id', async (c) => {
+  app.delete('/photos/:id', canWrite, async (c) => {
     await c.var.db.delete(s.photos).where(eq(s.photos.id, c.req.param('id')))
     return c.json({ ok: true })
   })
 
+  // ---------- users ----------
+  app.get('/users', async (c) => {
+    const rows = await c.var.db.select().from(s.users).orderBy(s.users.id)
+    return c.json(rows.map(publicUser))
+  })
+
+  const userFields = async (body, creating) => {
+    const out = {}
+    if (creating || body.username !== undefined) {
+      out.username = String(body.username || '').trim()
+      if (!/^[A-Za-z0-9._-]{3,40}$/.test(out.username)) throw new HTTPException(400, { message: 'Username must be 3-40 letters, digits, dot, dash or underscore' })
+    }
+    if (creating || body.displayName !== undefined) {
+      out.displayName = String(body.displayName || '').trim().slice(0, 80)
+      if (!out.displayName) throw new HTTPException(400, { message: 'Display name is required' })
+    }
+    if (creating || body.role !== undefined) {
+      if (!ROLES.includes(body.role)) throw new HTTPException(400, { message: 'Invalid role' })
+      out.role = body.role
+    }
+    if (body.email !== undefined) {
+      out.email = String(body.email || '').trim().slice(0, 200) || null
+      if (out.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) throw new HTTPException(400, { message: 'Invalid email address' })
+    }
+    if (body.status !== undefined) {
+      if (!['active', 'inactive'].includes(body.status)) throw new HTTPException(400, { message: 'Invalid status' })
+      out.status = body.status
+    }
+    if (creating || body.password) {
+      if (String(body.password || '').length < 6) throw new HTTPException(400, { message: 'Password must be at least 6 characters' })
+      out.passwordHash = await hashPassword(String(body.password))
+    }
+    return out
+  }
+
+  app.post('/users', requireRole('admin'), async (c) => {
+    const fields = await userFields(await c.req.json(), true)
+    const [dup] = await c.var.db.select().from(s.users).where(eq(s.users.username, fields.username))
+    if (dup) throw new HTTPException(409, { message: 'Username already exists' })
+    const row = { id: 'US' + crypto.randomUUID().slice(0, 8).toUpperCase(), status: 'active', ...fields }
+    await c.var.db.insert(s.users).values(row)
+    return c.json(publicUser(row))
+  })
+
+  app.patch('/users/:id', requireRole('admin'), async (c) => {
+    const id = c.req.param('id')
+    const fields = await userFields(await c.req.json(), false)
+    if (id === c.var.user.sub && ((fields.role && fields.role !== 'admin') || fields.status === 'inactive')) {
+      throw new HTTPException(400, { message: 'You cannot remove your own admin access' })
+    }
+    if (fields.username) {
+      const [dup] = await c.var.db.select().from(s.users).where(eq(s.users.username, fields.username))
+      if (dup && dup.id !== id) throw new HTTPException(409, { message: 'Username already exists' })
+    }
+    if (Object.keys(fields).length) await c.var.db.update(s.users).set(fields).where(eq(s.users.id, id))
+    const [row] = await c.var.db.select().from(s.users).where(eq(s.users.id, id))
+    if (!row) throw new HTTPException(404, { message: 'User not found' })
+    return c.json(publicUser(row))
+  })
+
+  // ---------- tickets ----------
+  const { body: _b, bodyHtml: _h, headers: _hd, raw: _r, ...LIST_COLUMNS } = getTableColumns(s.tickets)
+  app.get('/tickets', async (c) => {
+    const rows = await c.var.db.select(LIST_COLUMNS).from(s.tickets).orderBy(desc(s.tickets.createdAt))
+    const counts = await c.var.db.select({ id: s.ticketAttachments.ticketId, n: count() }).from(s.ticketAttachments).groupBy(s.ticketAttachments.ticketId)
+    const n = new Map(counts.map((r) => [r.id, r.n]))
+    return c.json(rows.map((r) => ({ ...r, attachmentCount: n.get(r.id) || 0 })))
+  })
+
+  app.get('/tickets/:id', async (c) => {
+    const { raw, ...t } = getTableColumns(s.tickets)
+    const [row] = await c.var.db.select({ ...t, hasRaw: sql`${s.tickets.raw} is not null` }).from(s.tickets).where(eq(s.tickets.id, c.req.param('id')))
+    if (!row) throw new HTTPException(404, { message: 'Ticket not found' })
+    const attachments = await c.var.db.select().from(s.ticketAttachments).where(eq(s.ticketAttachments.ticketId, row.id))
+    return c.json({ ...row, hasRaw: !!row.hasRaw, attachments })
+  })
+
+  app.get('/tickets/:id/raw', async (c) => {
+    const [row] = await c.var.db.select({ raw: s.tickets.raw }).from(s.tickets).where(eq(s.tickets.id, c.req.param('id')))
+    if (!row?.raw) throw new HTTPException(404, { message: 'Original source not stored' })
+    return c.json({ raw: row.raw })
+  })
+
+  app.get('/tickets/:id/notes', async (c) => {
+    const rows = await c.var.db.select().from(s.ticketNotes).where(eq(s.ticketNotes.ticketId, c.req.param('id'))).orderBy(desc(s.ticketNotes.at))
+    return c.json(rows)
+  })
+
+  app.post('/tickets/ingest', canWrite, async (c) => {
+    const body = await c.req.json()
+    if (!String(body.subject || '').trim() && !String(body.body || '').trim()) throw new HTTPException(400, { message: 'Subject or body is required' })
+    const fromEmail = String(body.from || '').match(/[^\s<>]+@[^\s<>]+/)?.[0] || ''
+    const result = await ingestEmail(c.var.db, { jev: c.var.jev, tz: c.var.mail.tz }, { ...body, fromEmail, source: 'manual' }, c.var.user.name)
+    if (!result.duplicate) await notifyAssignee(c.var.db, c.var.mail, result.ticket).catch((e) => console.error('notify failed', e.message))
+    return c.json(result)
+  })
+
+  app.get('/mailbox/status', async (c) => c.json(await mailboxStatus(c.var.db, c.var.mail)))
+
+  app.patch('/tickets/:id', canWrite, async (c) => {
+    const id = c.req.param('id')
+    const body = await c.req.json()
+    const [t] = await c.var.db.select().from(s.tickets).where(eq(s.tickets.id, id))
+    if (!t) throw new HTTPException(404, { message: 'Ticket not found' })
+    const set = {}, notes = []
+    const now = new Date().toISOString()
+    const note = (text) => notes.push({ id: crypto.randomUUID(), ticketId: id, kind: 'change', text, user: c.var.user.name, at: now })
+    if (body.status !== undefined && body.status !== t.status) {
+      if (!TICKET_STATUS.includes(body.status)) throw new HTTPException(400, { message: 'Invalid status' })
+      set.status = body.status; note(`Status: ${t.status} → ${body.status}`)
+    }
+    if (body.priority !== undefined && body.priority !== t.priority) {
+      if (!PRIORITIES.includes(body.priority)) throw new HTTPException(400, { message: 'Invalid priority' })
+      set.priority = body.priority; note(`Priority: ${t.priority} → ${body.priority}`)
+    }
+    if (body.assigneeId !== undefined && body.assigneeId !== t.assigneeId) {
+      const [u] = body.assigneeId ? await c.var.db.select().from(s.users).where(eq(s.users.id, String(body.assigneeId))) : [null]
+      if (body.assigneeId && !u) throw new HTTPException(400, { message: 'Unknown assignee' })
+      set.assigneeId = body.assigneeId || null; note(`Assignee: ${u ? u.displayName : 'unassigned'}`)
+    }
+    if (String(body.note || '').trim()) notes.push({ id: crypto.randomUUID(), ticketId: id, kind: 'note', text: String(body.note).trim().slice(0, 5000), user: c.var.user.name, at: now })
+    if (!Object.keys(set).length && !notes.length) return c.json(t)
+    await c.var.db.batch([
+      c.var.db.update(s.tickets).set({ ...set, updatedAt: now }).where(eq(s.tickets.id, id)),
+      ...(notes.length ? [c.var.db.insert(s.ticketNotes).values(notes)] : [])
+    ])
+    return c.json({ ...t, ...set, updatedAt: now })
+  })
+
   app.post('/reset', async (c) => {
     const db = c.var.db
+    const [hasData] = await db.select({ id: s.companies.id }).from(s.companies).limit(1)
+    if (hasData && c.var.user.role !== 'admin') throw new HTTPException(403, { message: 'Only admins can reset demo data' })
     const { data = {}, seq = {} } = await c.req.json()
     const stmts = [...Object.values(TABLES), s.photos].map((t) => db.delete(t))
     for (const [k, t] of Object.entries(TABLES)) {

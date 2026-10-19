@@ -5,12 +5,12 @@
       <div class="mono">{{ value }}</div>
       <div class="no-print">
         <el-button size="small" :icon="'Printer'" @click="print">Print QR code</el-button>
-        <el-button v-if="editable" size="small" :icon="'Edit'" @click="edit">Edit QR</el-button>
+        <el-button v-if="editable && can('write')" size="small" :icon="'Edit'" @click="edit">Edit QR</el-button>
       </div>
     </template>
     <template v-else>
       <div class="muted">No QR code set<span v-if="systemRef" class="mono" title="No QR – system ID"> · {{ systemRef }}</span></div>
-      <el-button v-if="editable" class="no-print" size="small" type="primary" :icon="'Plus'" @click="edit">Set QR</el-button>
+      <el-button v-if="editable && can('write')" class="no-print" size="small" type="primary" :icon="'Plus'" @click="edit">Set QR</el-button>
     </template>
   </div>
 </template>
@@ -19,6 +19,7 @@ import { ref, watchEffect } from 'vue'
 import QRCode from 'qrcode'
 import { ElMessageBox } from 'element-plus'
 import { BRAND } from '../brand'
+import { can } from '../store/api'
 
 const props = defineProps({
   value: String, systemRef: String, title: String, subtitle: String, size: { type: Number, default: 160 },
@@ -45,7 +46,7 @@ async function edit() {
 }
 const url = ref('')
 watchEffect(async () => {
-  url.value = props.value ? await QRCode.toDataURL(props.value, { width: 480, margin: 1 }) : ''
+  url.value = props.value ? await QRCode.toDataURL(`http://QR2id.net/?X@${props.value}`, { width: 480, margin: 1 }) : ''
 })
 
 function print() {

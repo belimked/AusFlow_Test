@@ -3,7 +3,7 @@
     <el-table @sort-change="onSort" :data="paged" stripe size="small">
       <el-table-column label="ID" prop="id" sortable="custom" width="86"><template #default="{ row }"><span class="link" @click="emit('view', row)">{{ row.id }}</span></template></el-table-column>
       <el-table-column label="Warnings" prop="warnings" sortable="custom" width="100"><template #default="{ row }"><el-badge :value="warnCount(row.id)" :hidden="!warnCount(row.id)" /></template></el-table-column>
-      <el-table-column v-if="!hideCompany" label="Hauler" prop="companyId" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
+      <el-table-column v-if="!hideCompany" label="Transport company" prop="companyId" sortable="custom" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ nameOf('companies', row.companyId) }}</template></el-table-column>
       <el-table-column label="Driver" prop="driverId" sortable="custom" width="110"><template #default="{ row }">{{ nameOf('drivers', row.driverId) }}</template></el-table-column>
       <el-table-column label="Vehicle" prop="vehicleId" sortable="custom" width="96"><template #default="{ row }"><span class="link" @click="router.push('/vehicles/' + row.vehicleId)">{{ plateOf(row.vehicleId) }}</span></template></el-table-column>
       <el-table-column v-if="!hideFacility" label="Treatment Facility" prop="facilityId" sortable="custom" min-width="180" show-overflow-tooltip><template #default="{ row }"><span class="link" @click="router.push('/facilities/' + row.facilityId)">{{ nameOf('facilities', row.facilityId) }}</span></template></el-table-column>
