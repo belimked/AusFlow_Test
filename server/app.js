@@ -112,6 +112,29 @@ export function createApp(setup) {
     }
   })
 
+  // Read-only device lookup for TWAIN, authorised by a shared key instead of a user session.
+  app.get('/integration/devices/:ref', async (c) => {
+    const key = c.var.integrationKey
+    const given = c.req.header('x-integration-key') || ''
+    let diff = !key || given.length !== key.length ? 1 : 0
+    for (let i = 0; !diff && i < key.length; i++) diff |= key.charCodeAt(i) ^ given.charCodeAt(i)
+    if (diff) throw new HTTPException(401, { message: 'Invalid integration key' })
+    const db = c.var.db
+    const [device] = await db.select().from(s.devices).where(eq(s.devices.ref, c.req.param('ref')))
+    if (!device) throw new HTTPException(404, { message: 'Device not found' })
+    const [[location], [transporter], pickups] = await Promise.all([
+      device.locationId ? db.select().from(s.locations).where(eq(s.locations.id, device.locationId)) : [],
+      device.companyId ? db.select({ id: s.companies.id, name: s.companies.name, phone: s.companies.phone }).from(s.companies).where(eq(s.companies.id, device.companyId)) : [],
+      db.select({ id: s.pickups.id, startAt: s.pickups.startAt, volume: s.pickups.volume, status: s.pickups.status }).from(s.pickups).where(eq(s.pickups.deviceId, device.id)).orderBy(desc(s.pickups.startAt)).limit(5)
+    ])
+    const nextDue = device.lastService && device.freqWeeks ? new Date(Date.parse(device.lastService) + device.freqWeeks * 7 * 864e5).toISOString() : null
+    return c.json({
+      device: { id: device.id, ref: device.ref, status: device.status, type: device.type, capacity: device.capacity, freqWeeks: device.freqWeeks, lastService: device.lastService },
+      location: location ? { id: location.id, name: location.name, agreementNo: location.agreementNo } : null,
+      transporter: transporter || null, pickups, nextDue
+    })
+  })
+
   app.use('*', async (c, next) => {
     const token = (c.req.header('Authorization') || '').replace(/^Bearer /, '')
     const user = await verifyToken(token, c.var.secret)
