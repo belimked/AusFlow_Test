@@ -96,7 +96,8 @@ export async function pollMailbox(db, jev, mail) {
   for (const m of fresh) {
     try {
       const { parsed, email } = await toEmail(m)
-      const ours = email.fromEmail.toLowerCase() === own && (email.subject.startsWith(NOTIFY_PREFIX) || email.body.includes(ACK_MARKER))
+      // Acks from any WasteID mailbox (e.g. UAT replying to production) must not become tickets, or the two instances reply to each other.
+      const ours = email.body.includes(ACK_MARKER) || (email.fromEmail.toLowerCase() === own && email.subject.startsWith(NOTIFY_PREFIX))
       if (m.source === 'admin@internal' || ours) {
         skipped.push({ mailId: m.id, reason: 'system' })
       } else {
