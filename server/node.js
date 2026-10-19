@@ -29,6 +29,7 @@ const app = createApp(async (c, next) => {
   c.set('secret', secret)
   c.set('jev', jev)
   c.set('mail', mail)
+  c.set('integrationKey', env.INTEGRATION_KEY)
   await next()
 })
 const port = +(process.env.PORT || 8788)

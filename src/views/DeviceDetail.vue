@@ -6,6 +6,7 @@
       <el-tag :type="{ Active: 'success', Inactive: 'info', Removed: 'danger' }[dev.status]">{{ DEVICE_STATUS[dev.status] }}</el-tag>
       <el-tag v-if="isOverdue(dev)" type="danger" effect="dark">{{ overdueText(dev) }}</el-tag>
       <span style="flex: 1" />
+      <el-button tag="a" :href="`${TWAIN_URL}/#/psid/${encodeURIComponent(dev.ref)}`" target="_blank" rel="noopener" :icon="'Link'">View in TWAIN</el-button>
       <el-button v-can="'write'" @click="tab = 'notes'; noteDialog = true">Add note</el-button>
       <el-button v-can="'write'" @click="tab = 'inspections'; inspectDialog = true">Inspect</el-button>
       <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
@@ -159,6 +160,7 @@ import WasteType from '../components/WasteType.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
 import { tagsOf, state, idx, nameOf, updateDevice, logChange, addEntityNote, nextId, CURRENT_USER, INSPECTION_RESULTS, ISSUE_CATEGORIES, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 import { can } from '../store/api'
+import { TWAIN_URL } from '../brand.js'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')

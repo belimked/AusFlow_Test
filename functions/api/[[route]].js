@@ -10,6 +10,7 @@ const app = createApp(async (c, next) => {
   c.set('secret', c.env.AUTH_SECRET)
   c.set('jev', jevConfig(c.env))
   c.set('mail', mailConfig(c.env))
+  c.set('integrationKey', c.env.INTEGRATION_KEY)
   await next()
 })
 
