@@ -1,0 +1,52 @@
+name: Deploy UAT
+
+# uat branch only: every push deploys UAT (Pages project wasteid-uat, D1 database wasteid-uat), the way deploy.yml
+# deploys production from main. Uses the same CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets.
+on:
+  push:
+    branches: [uat]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-uat
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: wasteid-uat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Check this is the UAT configuration
+        run: |
+          grep -q '^name = "wasteid-uat"' wrangler.toml && grep -q 'database_name = "wasteid-uat"' wrangler.toml \
+            || { echo "::error::wrangler.toml is not the UAT configuration; refusing to deploy"; exit 1; }
+
+      # Deploying to any other branch only creates a preview, so ask Cloudflare which branch is production.
+      - name: Find the project's production branch
+        run: |
+          BRANCH=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" | jq -r '.result.production_branch')
+          [ -n "$BRANCH" ] && [ "$BRANCH" != null ] || { echo "::error::Could not read the production branch of $PROJECT"; exit 1; }
+          echo "Production branch of $PROJECT: $BRANCH"
+          echo "PROD_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Apply D1 migrations (UAT)
+        run: npx wrangler d1 migrations apply wasteid-uat --remote
+
+      - name: Deploy to Cloudflare Pages (UAT)
+        run: npx wrangler pages deploy dist --project-name "$PROJECT" --branch "$PROD_BRANCH" --commit-dirty=true
