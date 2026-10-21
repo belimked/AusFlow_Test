@@ -7,7 +7,10 @@ export const users = sqliteTable('users', {
   displayName: text('display_name').notNull(),
   role: text('role').notNull().default('user'),
   email: text('email'),
-  status: text('status').notNull().default('active')
+  status: text('status').notNull().default('active'),
+  // Consecutive failed sign-ins; three in a row lock the account for a short while (old WasteID behaviour).
+  failedLogins: integer('failed_logins').notNull().default(0),
+  lockedUntil: text('locked_until')
 })
 
 export const meta = sqliteTable('meta', {
@@ -116,6 +119,8 @@ export const pickups = sqliteTable('pickups', {
   photos: integer('photos'),
   flags: text('flags', { mode: 'json' }),
   note: text('note'),
+  // Destination facility the driver plans to deliver to (optional, chosen in the app).
+  plannedFacilityId: text('planned_facility_id'),
   status: text('status').notNull()
 }, (t) => [index('pickups_device_idx').on(t.deviceId), index('pickups_vehicle_idx').on(t.vehicleId)])
 

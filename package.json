@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply wasteid --local",
     "db:migrate:remote": "wrangler d1 migrations apply wasteid --remote",
-    "dev:cf": "npm run build && wrangler pages dev --port 8788"
+    "dev:cf": "npm run build && wrangler pages dev --port 8788",
+    "test": "node --test server/*.test.js"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

@@ -4,7 +4,7 @@ import { eq, and, desc, inArray, sql, count, getTableColumns } from 'drizzle-orm
 import * as s from './schema.js'
 import { verifyPassword, hashPassword, signToken, verifyToken } from './auth.js'
 import { ingestEmail, PRIORITIES, TICKET_STATUS } from './tickets.js'
-import { pollMailbox, mailboxStatus, notifyAssignee } from './mailbox.js'
+import { pollMailbox, mailboxStatus, notifyAssignee, sendMail } from './mailbox.js'
 
 export const ROLES = ['admin', 'ops', 'user']
 const requireRole = (...roles) => async (c, next) => {
@@ -12,7 +12,11 @@ const requireRole = (...roles) => async (c, next) => {
   await next()
 }
 const canWrite = requireRole('admin', 'ops')
-const publicUser = ({ passwordHash, ...u }) => u
+const publicUser = ({ passwordHash, failedLogins, ...u }) => u
+const LOCK_AFTER = 3
+const LOCK_MINUTES = 15
+const RESET_TTL = 3600
+const resetFingerprint = (u) => u.passwordHash.slice(-16)
 
 export const TABLES = {
   companies: s.companies, locations: s.locations, devices: s.devices, drivers: s.drivers, vehicles: s.vehicles,
@@ -21,7 +25,11 @@ export const TABLES = {
 }
 // D1 allows at most 100 bound parameters per statement.
 const MAX_PARAMS = 100
-const PHOTO_KINDS = { device: ['device', 'coords'], company: ['photo'], vehicle: ['photo'], driver: ['photo'], alert: ['photo'], inspection: ['photo'], issue: ['photo'] }
+const PHOTO_KINDS = {
+  device: ['device', 'coords'], company: ['photo'], vehicle: ['photo'], driver: ['photo'], alert: ['photo'], inspection: ['photo'], issue: ['photo'],
+  // Taken in the driver app.
+  pickup: ['before', 'after', 'photo'], unload: ['photo'], transfer: ['photo']
+}
 // D1 rows are capped at 2 MB; clients downscale to ~1600px JPEG before upload.
 const MAX_PHOTO_CHARS = 1_500_000
 const DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/
@@ -78,10 +86,26 @@ export function createApp(setup) {
 
   app.post('/login', async (c) => {
     const { username, password } = await c.req.json()
-    const [user] = await c.var.db.select().from(s.users).where(eq(s.users.username, String(username || '')))
+    const db = c.var.db
+    const [user] = await db.select().from(s.users).where(eq(s.users.username, String(username || '')))
+    const now = Date.now()
+    if (user?.lockedUntil && Date.parse(user.lockedUntil) > now) {
+      const mins = Math.ceil((Date.parse(user.lockedUntil) - now) / 60000)
+      throw new HTTPException(423, { message: `Too many failed sign-in attempts. Try again in ${mins} min, or reset your password.` })
+    }
     if (!user || user.status !== 'active' || !(await verifyPassword(String(password || ''), user.passwordHash))) {
+      if (user) {
+        // Old WasteID: three wrong passwords lock the account. A timed lock (not a permanent one) stops guessing
+        // without letting anyone lock a colleague out for good by typing their username.
+        const failed = (user.failedLogins || 0) + 1
+        const lock = failed >= LOCK_AFTER
+        await db.update(s.users).set({ failedLogins: lock ? 0 : failed, lockedUntil: lock ? new Date(now + LOCK_MINUTES * 60000).toISOString() : null })
+          .where(eq(s.users.id, user.id))
+        if (lock) throw new HTTPException(423, { message: `Too many failed sign-in attempts. Your account is locked for ${LOCK_MINUTES} min. Reset your password to sign in now.` })
+      }
       throw new HTTPException(401, { message: 'Invalid username or password' })
     }
+    if (user.failedLogins || user.lockedUntil) await db.update(s.users).set({ failedLogins: 0, lockedUntil: null }).where(eq(s.users.id, user.id))
     const token = await signToken({ sub: user.id, name: user.displayName, role: user.role }, c.var.secret)
     return c.json({ token, user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role } })
   })
@@ -135,10 +159,43 @@ export function createApp(setup) {
     })
   })
 
+  // ---------- password reset (no session) ----------
+  // Same answer whether or not the account exists, so the endpoint cannot be used to discover usernames.
+  app.post('/password/forgot', async (c) => {
+    const { login } = await c.req.json()
+    const key = String(login || '').trim().toLowerCase()
+    if (!key) throw new HTTPException(400, { message: 'Enter your username or email address' })
+    const rows = await c.var.db.select().from(s.users)
+    const user = rows.find((u) => u.status === 'active' && (u.username.toLowerCase() === key || (u.email || '').toLowerCase() === key))
+    if (user?.email) {
+      const token = await signToken({ sub: user.id, purpose: 'reset', fp: resetFingerprint(user) }, c.var.secret, RESET_TTL)
+      const link = `${new URL(c.req.url).origin}/#/reset-password?token=${encodeURIComponent(token)}`
+      await sendMail(c.var.mail || {}, {
+        to: user.email, toName: user.displayName, subject: 'Reset your WasteID password',
+        content: `Hello ${user.displayName},\n\nOpen this link within an hour to choose a new password:\n\n${link}\n\nIf you did not ask for this, ignore this email; your password stays the same.\n\nWasteID`,
+      }).catch((e) => console.error('reset email failed:', e.message))
+    }
+    return c.json({ ok: true })
+  })
+
+  app.post('/password/reset', async (c) => {
+    const { token, password } = await c.req.json()
+    const invalid = new HTTPException(400, { message: 'This reset link is invalid or has expired. Ask for a new one.' })
+    const p = await verifyToken(String(token || ''), c.var.secret)
+    if (!p || p.purpose !== 'reset') throw invalid
+    const [user] = await c.var.db.select().from(s.users).where(eq(s.users.id, String(p.sub)))
+    // The fingerprint changes with the password, so a link works only once.
+    if (!user || user.status !== 'active' || resetFingerprint(user) !== p.fp) throw invalid
+    if (String(password || '').length < 6) throw new HTTPException(400, { message: 'Password must be at least 6 characters' })
+    await c.var.db.update(s.users).set({ passwordHash: await hashPassword(String(password)), failedLogins: 0, lockedUntil: null }).where(eq(s.users.id, user.id))
+    return c.json({ ok: true })
+  })
+
   app.use('*', async (c, next) => {
     const token = (c.req.header('Authorization') || '').replace(/^Bearer /, '')
     const user = await verifyToken(token, c.var.secret)
-    if (!user) throw new HTTPException(401, { message: 'Not signed in' })
+    // Reset tokens are signed the same way but must never work as a session.
+    if (!user || user.purpose) throw new HTTPException(401, { message: 'Not signed in' })
     if (user.role === 'authority') user.role = 'admin'
     c.set('user', user)
     await next()
@@ -234,9 +291,26 @@ export function createApp(setup) {
     if (creating || body.password) {
       if (String(body.password || '').length < 6) throw new HTTPException(400, { message: 'Password must be at least 6 characters' })
       out.passwordHash = await hashPassword(String(body.password))
+      // A new password also lifts a sign-in lock.
+      out.failedLogins = 0
+      out.lockedUntil = null
     }
     return out
   }
+
+  // Old WasteID "My Details": users change their own name, email and password; the current password is required.
+  app.patch('/me', async (c) => {
+    const body = await c.req.json()
+    const [user] = await c.var.db.select().from(s.users).where(eq(s.users.id, c.var.user.sub))
+    if (!user) throw new HTTPException(404, { message: 'User not found' })
+    if (!(await verifyPassword(String(body.currentPassword || ''), user.passwordHash))) {
+      throw new HTTPException(403, { message: 'Your current password is not correct' })
+    }
+    const fields = await userFields({ displayName: body.displayName, email: body.email, password: body.newPassword }, false)
+    if (Object.keys(fields).length) await c.var.db.update(s.users).set(fields).where(eq(s.users.id, user.id))
+    const [row] = await c.var.db.select().from(s.users).where(eq(s.users.id, user.id))
+    return c.json(publicUser(row))
+  })
 
   app.post('/users', requireRole('admin'), async (c) => {
     const fields = await userFields(await c.req.json(), true)

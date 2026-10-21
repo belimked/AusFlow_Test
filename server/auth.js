@@ -31,8 +31,8 @@ export async function verifyPassword(password, stored) {
 
 const hmacKey = (secret) => crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
 
-export async function signToken(payload, secret) {
-  const body = b64u(enc.encode(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + TOKEN_TTL })))
+export async function signToken(payload, secret, ttl = TOKEN_TTL) {
+  const body = b64u(enc.encode(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + ttl })))
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(body))
   return `${body}.${b64u(sig)}`
 }
