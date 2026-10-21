@@ -33,7 +33,14 @@ async function mailApi(mail, path, body) {
   try { return JSON.parse(text) } catch { return text }
 }
 
-const htmlToText = (html) => html.replace(/<(style|script)[\s\S]*?<\/\1>/gi, '').replace(/<br\s*\/?>|<\/p>|<\/div>/gi, '\n')
+// Plain-text email from the ops mailbox; a no-op when mail is not configured.
+export async function sendMail(mail, { to, toName, subject, content }) {
+  if (!mailEnabled(mail) || !to) return false
+  await mailApi(mail, '/api/send_mail', { from_name: 'WasteID', to_name: toName || to, to_mail: to, is_html: false, subject: subject.slice(0, 250), content })
+  return true
+}
+
+const htmlToText =(html) => html.replace(/<(style|script)[\s\S]*?<\/\1>/gi, '').replace(/<br\s*\/?>|<\/p>|<\/div>/gi, '\n')
   .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\n{3,}/g, '\n\n').trim()
 
 function base64(buf) {

@@ -28,6 +28,7 @@
         <el-form-item label="Password"><el-input v-model="form.pass" type="password" show-password :prefix-icon="'Lock'" /></el-form-item>
         <el-button type="primary" native-type="submit" class="submit">Sign in</el-button>
       </el-form>
+      <el-button link type="primary" class="forgot" @click="forgot">Forgot password?</el-button>
       <p class="muted tip">Demo accounts: admin / admin123 (Admin) · ops01 / ops123 (Operations) · user01 / user123 (User)</p>
     </div>
     <div class="foot">Prototype · Queensland demo data</div>
@@ -36,7 +37,7 @@
 <script setup>
 import { reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import LoginScene from '../components/LoginScene.vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import { api, login } from '../store/api'
@@ -62,8 +63,25 @@ async function submit() {
   }
   router.push(route.query.redirect || '/dashboard')
 }
+// Old WasteID "Forgot Password?": the server emails a one-time link if the account has an email address.
+async function forgot() {
+  let value
+  try {
+    ({ value } = await ElMessageBox.prompt('Enter your username or email address. A reset link will be sent to the email address on your account.',
+      'Reset password', { confirmButtonText: 'Send link', inputValue: form.user.trim(), inputValidator: (v) => !!v?.trim() || 'Required' }))
+  } catch {
+    return
+  }
+  try {
+    await api('/password/forgot', { login: value.trim() })
+    ElMessage.success({ message: 'If that account has an email address, a reset link is on its way. It works for one hour.', duration: 6000 })
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
 </script>
 <style scoped>
+.forgot { display: block; margin: 10px auto 0; }
 .login { position: relative; height: 100%; min-height: 600px; overflow: hidden; background: #071526; color: #fff; }
 .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,14,26,.75) 0%, rgba(4,14,26,.35) 45%, rgba(4,14,26,0) 70%); pointer-events: none; }
 .hero { position: absolute; left: 6vw; top: 9vh; max-width: 640px; }

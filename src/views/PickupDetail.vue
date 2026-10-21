@@ -24,11 +24,12 @@
             <el-descriptions-item label="End">{{ p.endAt ? fmtTime(p.endAt) : `Not finished (${((Date.now() - new Date(p.startAt)) / 36e5).toFixed(1)} h elapsed)` }}</el-descriptions-item>
             <el-descriptions-item label="Distance from device"><span :class="{ red: p.distance > 200 }">{{ fmtM(p.distance) }}</span> <span class="muted">(phone vs. registered device location; over 200 m is flagged)</span></el-descriptions-item>
             <el-descriptions-item label="Notes">{{ p.note || '—' }}</el-descriptions-item>
+            <el-descriptions-item v-if="p.plannedFacilityId" label="Planned destination">
+              <span class="link" @click="router.push('/facilities/' + p.plannedFacilityId)">{{ nameOf('facilities', p.plannedFacilityId) }}</span> <span class="muted">(chosen by the driver)</span>
+            </el-descriptions-item>
             <el-descriptions-item label="Photos">
-              <div v-if="p.photos" style="display: flex; gap: 8px">
-                <el-image v-for="i in p.photos" :key="i" :src="photo(i)" :preview-src-list="[photo(i)]" style="width: 96px; height: 72px; border-radius: 4px" />
-              </div>
-              <span v-else class="muted">No photos</span>
+              <!-- Taken in the driver app; stored through /photos with type "pickup". -->
+              <EntityPhotos type="pickup" :id="p.id" readonly :kinds="{ before: 'Before', after: 'After', photo: 'Other photos' }" />
             </el-descriptions-item>
           </el-descriptions>
         </div>
@@ -53,6 +54,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MapView from '../components/MapView.vue'
 import WasteType from '../components/WasteType.vue'
+import EntityPhotos from '../components/EntityPhotos.vue'
 import TraceSteps from '../components/TraceSteps.vue'
 import OperationFollowup from '../components/OperationFollowup.vue'
 import { idx, nameOf, plateOf, fmtTime, fmtL, fmtM, pickupDeliveries, unloadSources } from '../store/db'
@@ -73,7 +75,4 @@ const markers = computed(() => [
   { lat: p.value.startLat, lng: p.value.startLng, label: 'Start ' + fmtTime(p.value.startAt), color: '#67c23a' },
   { lat: p.value.endLat, lng: p.value.endLng, label: 'End ' + fmtTime(p.value.endAt), color: '#f56c6c' }
 ])
-const photo = (i) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="100%" height="100%" fill="${i === 1 ? '#6b7f8e' : '#8a7a5c'}"/>` +
-  `<text x="50%" y="50%" fill="#fff" font-size="22" text-anchor="middle" font-family="sans-serif">${i === 1 ? 'Before' : 'After'} · sample photo</text></svg>`)
 </script>

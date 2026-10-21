@@ -6,6 +6,7 @@ import { isLoaded, loadState, refreshUser } from './store/db'
 const v = (name) => () => import(`./views/${name}.vue`)
 const routes = [
   { path: '/login', component: v('Login'), meta: { public: true } },
+  { path: '/reset-password', component: v('ResetPassword'), meta: { public: true } },
   {
     path: '/', component: Layout, redirect: '/dashboard',
     children: [
