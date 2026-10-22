@@ -5,9 +5,12 @@ import { ingestEmail } from './tickets.js'
 
 const PAGE = 20
 const MAX_PAGES = 10
-export const NOTIFY_PREFIX = '[WasteID Ticket'
+export const NOTIFY_PREFIX = '[AusFlow Ticket'
 // Marks our own acknowledgements so a reply that loops back into the mailbox is never ingested.
-const ACK_MARKER = 'This is an automated acknowledgement from WasteID Operations.'
+const ACK_MARKER = 'This is an automated acknowledgement from AusFlow Operations.'
+// Mails sent under the old product name (before the rename to AusFlow) are ours too.
+const OWN_MARKERS = [ACK_MARKER, 'This is an automated acknowledgement from WasteID Operations.']
+const OWN_PREFIXES = [NOTIFY_PREFIX, '[WasteID Ticket']
 const NO_REPLY = /^(no-?reply|do-?not-?reply|mailer-daemon|postmaster|bounce)/i
 
 export function mailConfig(env) {
@@ -36,7 +39,7 @@ async function mailApi(mail, path, body) {
 // Plain-text email from the ops mailbox; a no-op when mail is not configured.
 export async function sendMail(mail, { to, toName, subject, content }) {
   if (!mailEnabled(mail) || !to) return false
-  await mailApi(mail, '/api/send_mail', { from_name: 'WasteID', to_name: toName || to, to_mail: to, is_html: false, subject: subject.slice(0, 250), content })
+  await mailApi(mail, '/api/send_mail', { from_name: 'AusFlow', to_name: toName || to, to_mail: to, is_html: false, subject: subject.slice(0, 250), content })
   return true
 }
 
@@ -103,8 +106,8 @@ export async function pollMailbox(db, jev, mail) {
   for (const m of fresh) {
     try {
       const { parsed, email } = await toEmail(m)
-      // Acks from any WasteID mailbox (e.g. UAT replying to production) must not become tickets, or the two instances reply to each other.
-      const ours = email.body.includes(ACK_MARKER) || (email.fromEmail.toLowerCase() === own && email.subject.startsWith(NOTIFY_PREFIX))
+      // Acks from any AusFlow mailbox (e.g. UAT replying to production) must not become tickets, or the two instances reply to each other.
+      const ours = OWN_MARKERS.some((m) => email.body.includes(m)) || (email.fromEmail.toLowerCase() === own && OWN_PREFIXES.some((p) => email.subject.startsWith(p)))
       if (m.source === 'admin@internal' || ours) {
         skipped.push({ mailId: m.id, reason: 'system' })
       } else {
@@ -144,10 +147,10 @@ export async function acknowledge(db, mail, ticket) {
   if (!mailEnabled(mail) || !ticket.fromEmail) return
   const subject = /^re:/i.test(ticket.subject) ? ticket.subject : `Re: ${ticket.subject}`
   await mailApi(mail, '/api/send_mail', {
-    from_name: 'WasteID Operations', to_name: ticket.fromAddr.replace(/\s*<[^>]*>$/, '') || ticket.fromEmail, to_mail: ticket.fromEmail, is_html: false,
+    from_name: 'AusFlow Operations', to_name: ticket.fromAddr.replace(/\s*<[^>]*>$/, '') || ticket.fromEmail, to_mail: ticket.fromEmail, is_html: false,
     subject: subject.slice(0, 250),
     content: `Hello,\n\nYour email has been received and a ticket has been opened.\n\nTicket number: ${ticket.id}\nStatus: Open\nPriority: ${PRIORITY_LABEL[ticket.priority]}\n\n` +
-      `Our operations team will follow up. Please quote ${ticket.id} in any further correspondence.\n\nWasteID Operations\n\n${ACK_MARKER}`
+      `Our operations team will follow up. Please quote ${ticket.id} in any further correspondence.\n\nAusFlow Operations\n\n${ACK_MARKER}`
   })
   await addNote(db, ticket.id, `Acknowledgement sent to ${ticket.fromEmail}`)
 }
@@ -157,7 +160,7 @@ export async function notifyAssignee(db, mail, ticket) {
   const [u] = await db.select().from(s.users).where(eq(s.users.id, ticket.assigneeId))
   if (!u?.email) return
   await mailApi(mail, '/api/send_mail', {
-    from_name: 'WasteID Ops', to_name: u.displayName, to_mail: u.email, is_html: false,
+    from_name: 'AusFlow Ops', to_name: u.displayName, to_mail: u.email, is_html: false,
     subject: `${NOTIFY_PREFIX} ${ticket.id}] ${ticket.priority.toUpperCase()}: ${ticket.subject}`.slice(0, 250),
     content: `A new ${ticket.priority} ticket has been assigned to you.\n\nTicket: ${ticket.id}\nFrom: ${ticket.fromAddr || '-'}\nSubject: ${ticket.subject}\n\n${(ticket.body || '').slice(0, 3000)}\n\n${ACK_MARKER}`
   })
