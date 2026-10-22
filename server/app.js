@@ -67,6 +67,11 @@ async function readSeq(db) {
   return row?.value || {}
 }
 
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
+}
+
 function maxSeq(a, b) {
   const out = { ...a }
   for (const [k, v] of Object.entries(b || {})) out[k] = Math.max(out[k] || 0, v)
@@ -208,7 +213,11 @@ export function createApp(setup) {
     const results = await Promise.all(keys.map((k) => db.select().from(TABLES[k]).orderBy(sql`rowid desc`)))
     const data = Object.fromEntries(keys.map((k, i) => [k, results[i]]))
     const empty = !data.devices.length && !data.companies.length
-    return c.json({ empty, seq: await readSeq(db), data })
+    // The console polls this; an ETag lets an unchanged state come back as a 304 instead of ~0.5 MB.
+    const body = JSON.stringify({ empty, seq: await readSeq(db), data })
+    const etag = `"${await sha256(body)}"`
+    if (c.req.header('If-None-Match') === etag) return new Response(null, { status: 304, headers: { ETag: etag } })
+    return c.body(body, 200, { 'Content-Type': 'application/json; charset=UTF-8', ETag: etag })
   })
 
   // What a client needs before writing: the id counters and the pickups still in progress. A fraction of /state,
