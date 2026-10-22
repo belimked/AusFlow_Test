@@ -45,7 +45,7 @@
       </el-table>
       <Pager v-model:page="page" v-model:page-size="pageSize" :total="rows.length" />
       <div class="muted" style="margin-top: 12px">
-        Tickets are created from emails sent to the operations mailbox. Subject and body are scanned for keywords (e.g. serious / danger / urgent / overflow / 严重 / 危险),
+        Tickets are created from emails sent to the operations mailbox. Subject and body are scanned for keywords (e.g. serious / danger / urgent / overflow),
         and the JEV model uses them as evidence to decide critical / normal / low. The ticket is assigned to the operations user with the fewest open tickets and the sender
         receives an acknowledgement with the ticket number. A second email from the same sender with the same subject on the same day is skipped. Tickets are separate from alerts.
       </div>

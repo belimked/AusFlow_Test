@@ -11,9 +11,8 @@ const MAX_STORED_CHARS = 1_500_000
 export const KEYWORDS = {
   critical: ['urgent', 'emergency', 'danger', 'dangerous', 'hazard', 'hazardous', 'serious', 'severe', 'critical', 'overflow', 'overflowing',
     'spill', 'spillage', 'leak', 'leaking', 'flood', 'flooding', 'sewage', 'fire', 'injury', 'injured', 'toxic', 'explosion', 'blocked', 'blockage',
-    'immediately', 'asap', '严重', '危险', '紧急', '溢出', '泄漏', '泄露', '漏水', '着火', '火灾', '受伤', '有毒', '爆炸', '堵塞', '立即', '马上'],
-  normal: ['complaint', 'missed', 'overdue', 'broken', 'damaged', 'damage', 'smell', 'odour', 'odor', 'not working', 'faulty', 'reschedule', 'invoice',
-    '投诉', '损坏', '逾期', '故障', '异味', '漏收', '发票']
+    'immediately', 'asap'],
+  normal: ['complaint', 'missed', 'overdue', 'broken', 'damaged', 'damage', 'smell', 'odour', 'odor', 'not working', 'faulty', 'reschedule', 'invoice']
 }
 
 export function scanKeywords(subject, body) {
@@ -23,7 +22,7 @@ export function scanKeywords(subject, body) {
 }
 
 const CRITERIA = {
-  critical: 'Needs action within hours: words such as serious/danger/urgent/严重/危险/紧急, overflow, spill, leak, blockage, sewage on site, safety or environmental hazard, injury, regulator or legal deadline, system outage, angry escalation',
+  critical: 'Needs action within hours: words such as serious/danger/urgent, overflow, spill, leak, blockage, sewage on site, safety or environmental hazard, injury, regulator or legal deadline, system outage, angry escalation',
   normal: 'A real problem or request to handle within a few days: complaint, missed or overdue pump-out, damaged device, odour, booking or reschedule, data correction, access issue, invoice dispute',
   low: 'Informational or routine with no action needed soon: thank-you, newsletter, general question, auto-reply, marketing, FYI'
 }
