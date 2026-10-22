@@ -164,3 +164,18 @@ test('pickups keep the planned destination facility through /sync and /state', a
   const state = (await call('GET', '/state', undefined, token)).body
   assert.equal(state.data.pickups[0].plannedFacilityId, 'FA0001')
 })
+
+test('/state/summary returns the seq and only the pickups in progress', async () => {
+  const { addUser, call, login } = await setup()
+  await addUser('U1', 'sam', 'pass-123')
+  const token = (await login('sam', 'pass-123')).body.token
+  await call('POST', '/sync', { upserts: { pickups: [
+    { id: 'PK0001', deviceId: 'DV1', status: 'done', volume: 100 },
+    { id: 'PK0002', deviceId: 'DV2', status: 'ongoing' },
+  ] }, seq: { PK: 2 } }, token)
+  const r = await call('GET', '/state/summary', undefined, token)
+  assert.equal(r.status, 200)
+  assert.deepEqual(r.body.seq, { PK: 2 })
+  assert.deepEqual(r.body.ongoing.map((p) => p.id), ['PK0002'])
+  assert.equal((await call('GET', '/state/summary')).status, 401)
+})

@@ -211,6 +211,14 @@ export function createApp(setup) {
     return c.json({ empty, seq: await readSeq(db), data })
   })
 
+  // What a client needs before writing: the id counters and the pickups still in progress. A fraction of /state,
+  // so the driver app can check for conflicts without downloading everything.
+  app.get('/state/summary', async (c) => {
+    const db = c.var.db
+    const ongoing = await db.select().from(s.pickups).where(eq(s.pickups.status, 'ongoing')).orderBy(sql`rowid desc`)
+    return c.json({ seq: await readSeq(db), ongoing })
+  })
+
   app.post('/sync', canWrite, async (c) => {
     const db = c.var.db
     const { upserts = {}, deletes = {}, seq } = await c.req.json()
