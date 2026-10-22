@@ -171,7 +171,7 @@ export function createApp(setup) {
       const token = await signToken({ sub: user.id, purpose: 'reset', fp: resetFingerprint(user) }, c.var.secret, RESET_TTL)
       const link = `${new URL(c.req.url).origin}/#/reset-password?token=${encodeURIComponent(token)}`
       await sendMail(c.var.mail || {}, {
-        to: user.email, toName: user.displayName, subject: 'Reset your WasteID password',
+        to: user.email, toName: user.displayName, subject: 'Reset your AusFlow password',
         content: `Hello ${user.displayName},\n\nOpen this link within an hour to choose a new password:\n\n${link}\n\nIf you did not ask for this, ignore this email; your password stays the same.\n\nWasteID`,
       }).catch((e) => console.error('reset email failed:', e.message))
     }
