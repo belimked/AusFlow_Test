@@ -28,6 +28,7 @@ async function setup({ mail = {} } = {}) {
     })
     return { status: res.status, body: await res.json() }
   }
+  globalThis.__app = app
   const addUser = async (id, username, password, role = 'ops', email = null) =>
     client.execute({ sql: 'INSERT INTO users (id, username, password_hash, display_name, role, email) VALUES (?, ?, ?, ?, ?, ?)', args: [id, username, await hashPassword(password), username, role, email] })
   const login = async (username, password) => call('POST', '/login', { username, password })
@@ -178,4 +179,24 @@ test('/state/summary returns the seq and only the pickups in progress', async ()
   assert.deepEqual(r.body.seq, { PK: 2 })
   assert.deepEqual(r.body.ongoing.map((p) => p.id), ['PK0002'])
   assert.equal((await call('GET', '/state/summary')).status, 401)
+})
+
+test('/state carries an ETag and answers 304 until something changes', async () => {
+  const { addUser, call, login } = await setup()
+  await addUser('U1', 'sam', 'pass-123')
+  const token = (await login('sam', 'pass-123')).body.token
+  const first = await (await fetchState(token)).text()
+  const etag = first.headers.get('ETag')
+  assert.ok(etag && etag.startsWith('"'))
+  const again = await fetchState(token, etag)
+  assert.equal(again.status, 304)
+  await call('POST', '/sync', { upserts: { pickups: [{ id: 'PK0001', status: 'done', volume: 1 }] }, seq: {} }, token)
+  const changed = await fetchState(token, etag)
+  assert.equal(changed.status, 200)
+  assert.notEqual(changed.headers.get('ETag'), etag)
+
+  async function fetchState(tok, ifNoneMatch) {
+    const res = await globalThis.__app.request('http://wasteid.test/api/state', { headers: { Authorization: `Bearer ${tok}`, ...(ifNoneMatch ? { 'If-None-Match': ifNoneMatch } : {}) } })
+    return Object.assign(res, { text: async () => res })
+  }
 })

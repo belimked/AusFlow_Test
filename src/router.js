@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Layout from './views/Layout.vue'
 import { isSignedIn, can } from './store/api'
-import { isLoaded, loadState, refreshUser } from './store/db'
+import { isLoaded, loadState, refreshState, refreshUser } from './store/db'
 
 const v = (name) => () => import(`./views/${name}.vue`)
 const routes = [
@@ -46,6 +46,8 @@ router.beforeEach(async (to) => {
   if (!isLoaded()) await loadState().catch(() => login)
   if (!isLoaded()) return login
   refreshUser()
+  // Opening a page picks up what the driver app saved meanwhile (in the background; pages are reactive).
+  refreshState()
   if (to.meta.perm && !can(to.meta.perm)) return '/dashboard'
 })
 export default router
