@@ -1,7 +1,7 @@
 import { reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { buildSeed } from './seed'
-import { api, currentUser, can } from './api'
+import { api, authHeaders, currentUser, can, logout } from './api'
 
 const DAY = 864e5
 export let CURRENT_USER = ''
@@ -28,8 +28,11 @@ let syncedSeq = '{}'
 let loaded = false
 let saveTimer
 let queue = Promise.resolve()
+let savePending = false   // a save is scheduled or running
+let saving = 0
 
-async function flush() {
+// Local rows that differ from what the server last acknowledged.
+function localChanges() {
   const next = snapshotOf()
   const upserts = {}, deletes = {}
   for (const k of TABLES) {
@@ -37,20 +40,85 @@ async function flush() {
     for (const id of synced[k].keys()) if (!next[k].has(id)) (deletes[k] ||= []).push(id)
   }
   const seq = JSON.stringify(state.seq)
-  if (!Object.keys(upserts).length && !Object.keys(deletes).length && seq === syncedSeq) return
+  const any = Object.keys(upserts).length > 0 || Object.keys(deletes).length > 0 || seq !== syncedSeq
+  return { next, upserts, deletes, seq, any }
+}
+
+async function flush() {
+  saving++
   try {
-    await api('/sync', { upserts, deletes, seq: state.seq })
-    synced = next
-    syncedSeq = seq
-  } catch (e) {
-    ElMessage.error('Save failed: ' + e.message)
+    const { next, upserts, deletes, seq, any } = localChanges()
+    if (!any) return
+    try {
+      await api('/sync', { upserts, deletes, seq: state.seq })
+      synced = next
+      syncedSeq = seq
+    } catch (e) {
+      ElMessage.error('Save failed: ' + e.message)
+    }
+  } finally {
+    saving--
   }
 }
 
 export function save() {
   if (!can('write')) return
+  savePending = true
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => { queue = queue.then(flush) }, 300)
+  saveTimer = setTimeout(() => { savePending = false; queue = queue.then(flush) }, 300)
+}
+
+// ---------- live refresh: pick up what the driver app and other users saved ----------
+// The state is re-fetched on navigation, when the tab becomes visible and every 30 s. Local edits that are still
+// being saved are never overwritten: a refresh is skipped while anything is pending.
+const REFRESH_MS = 30000
+let etag = ''
+let lastRefresh = 0
+let refreshing = null
+let autoRefresh = false
+
+const dirty = () => savePending || saving > 0 || (synced && localChanges().any)
+
+async function fetchState() {
+  const res = await fetch('/api/state', { headers: { ...authHeaders(), ...(etag ? { 'If-None-Match': etag } : {}) } })
+  if (res.status === 304) return null
+  if (res.status === 401) { logout(); location.hash = '#/login'; throw new Error('Not signed in') }
+  if (!res.ok) throw new Error(`Request failed (${res.status})`)
+  etag = res.headers.get('ETag') || ''
+  return res.json()
+}
+
+function applyServer(res) {
+  const { alertReads, ...rest } = res.data
+  Object.assign(state, emptyState(), rest, { seq: res.seq, alertReads: Object.fromEntries(alertReads.map((r) => [r.id, true])) })
+  markSynced()
+}
+
+export function refreshState({ force = false } = {}) {
+  if (!loaded) return Promise.resolve()
+  if (refreshing) return refreshing
+  if (!force && Date.now() - lastRefresh < 5000) return Promise.resolve()
+  if (dirty()) return Promise.resolve()
+  refreshing = (async () => {
+    try {
+      const res = await fetchState()
+      lastRefresh = Date.now()
+      if (res && !res.empty && !dirty()) applyServer(res)
+    } catch {
+      // try again on the next trigger
+    } finally {
+      refreshing = null
+    }
+  })()
+  return refreshing
+}
+
+function startAutoRefresh() {
+  if (autoRefresh || typeof window === 'undefined') return
+  autoRefresh = true
+  setInterval(() => { if (document.visibilityState === 'visible') refreshState() }, REFRESH_MS)
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshState({ force: true }) })
+  window.addEventListener('focus', () => refreshState())
 }
 
 function markSynced() {
@@ -67,11 +135,12 @@ export function refreshUser() {
 
 export async function loadState() {
   refreshUser()
-  const res = await api('/state')
+  const res = await fetchState()
+  if (!res) return
   if (res.empty) return resetDemo()
-  const { alertReads, ...rest } = res.data
-  Object.assign(state, emptyState(), rest, { seq: res.seq, alertReads: Object.fromEntries(alertReads.map((r) => [r.id, true])) })
-  markSynced()
+  applyServer(res)
+  lastRefresh = Date.now()
+  startAutoRefresh()
 }
 
 export async function resetDemo() {

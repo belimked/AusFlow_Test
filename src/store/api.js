@@ -9,6 +9,8 @@ export const roleOf = () => { const r = currentUser()?.role; return r === 'autho
 const PERMS = { write: ['admin', 'ops'], admin: ['admin'] }
 export const can = (perm) => !!PERMS[perm]?.includes(roleOf())
 
+export const authHeaders = () => { const t = sessionStorage.getItem(TOKEN); return t ? { Authorization: `Bearer ${t}` } : {} }
+
 export function logout() {
   sessionStorage.removeItem(TOKEN)
   sessionStorage.removeItem(USER)
