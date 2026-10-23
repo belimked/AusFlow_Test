@@ -64,7 +64,7 @@
           <el-button :loading="routing" :disabled="!day || !routable" @click="planRoutes">{{ routed ? 'Routes planned' : 'Plan routes (OSRM)' }}</el-button>
         </div>
         <MapView :markers="markers" :lines="lines" :height="500" />
-        <div class="muted" style="font-size: 12px; margin-top: 6px">Numbered in order of the day · Green: pump-out · Blue: transfer · Purple: unload · Dashed: straight line, solid: road route (OSRM)</div>
+        <div class="muted" style="font-size: 12px; margin-top: 6px">Numbered in order of the day · Green: pump-out · Blue: transfer · Purple: unload · Dashed: straight line, solid: road route (OSRM) · each leg has its own colour, hover a line to see which</div>
       </div>
     </div>
 
@@ -253,8 +253,9 @@ const lines = computed(() => {
   for (let i = 0; i < list.length - 1; i++) {
     const a = list[i], b = list[i + 1]
     const r = routes[a.id]
-    if (r) out.push(r.geometry)
-    else if (a.endPos && b.startPos) out.push([[a.endPos.lat, a.endPos.lng], [b.startPos.lat, b.startPos.lng]])
+    const label = `Step ${i + 1} → ${i + 2}`
+    if (r) out.push({ path: r.geometry, label, road: true })
+    else if (a.endPos && b.startPos) out.push({ path: [[a.endPos.lat, a.endPos.lng], [b.startPos.lat, b.startPos.lng]], label })
   }
   return out
 })

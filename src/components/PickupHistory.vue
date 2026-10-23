@@ -110,8 +110,8 @@ function points(p) {
   return out
 }
 function lines(p) {
-  const pts = points(p).filter((x) => x.color !== '#e6a23c' && x.color !== '#67c23a').map((x) => [x.lat, x.lng])
-  return pts.length > 1 ? [pts] : []
+  const pts = points(p).filter((x) => x.color !== '#e6a23c' && x.color !== '#67c23a')
+  return pts.slice(1).map((b, i) => ({ path: [[pts[i].lat, pts[i].lng], [b.lat, b.lng]], label: `${pts[i].label} → ${b.label}` }))
 }
 </script>
 <style scoped>
