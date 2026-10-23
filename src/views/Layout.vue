@@ -17,7 +17,7 @@
           <el-menu-item index="/change-logs">Change Log</el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="allco"><template #title><el-icon><OfficeBuilding /></el-icon>Companies</template>
-          <el-menu-item index="/companies?type=all">All companies</el-menu-item>
+          <el-menu-item index="/companies?type=occupier">Occupiers</el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="co">
           <template #title><el-icon><Van /></el-icon>Transport companies</template>
@@ -73,7 +73,9 @@ const router = useRouter()
 const user = currentUser()?.username
 const active = computed(() => {
   const p = route.path
-  const map = { '/locations/': '/locations', '/devices/': '/devices', '/companies/': '/companies', '/vehicles/': '/vehicles', '/pickups/': '/pickups', '/facilities/': '/facilities' }
+  // "Occupiers" and "Transport companies" share the /companies route; only the query tells them apart.
+  if (p === '/companies' && route.query.type && route.query.type !== 'transport') return `/companies?type=${route.query.type}`
+  const map = { '/locations/': '/locations', '/devices/': '/devices', '/companies/': '/companies', '/drivers/': '/drivers', '/vehicles/': '/vehicles', '/pickups/': '/pickups', '/facilities/': '/facilities' }
   for (const [k, v] of Object.entries(map)) if (p.startsWith(k)) return v
   return p
 })

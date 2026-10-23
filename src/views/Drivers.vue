@@ -13,7 +13,7 @@
         <el-button v-can="'write'" type="primary" :icon="'Plus'" @click="edit(null)">Add driver</el-button>
       </div>
       <el-table @sort-change="onSort" :data="rows" stripe>
-        <el-table-column label="Name" prop="name" sortable="custom" width="160" />
+        <el-table-column label="Name" prop="name" sortable="custom" width="160"><template #default="{ row }"><span class="link" @click="router.push('/drivers/' + row.id)">{{ row.name }}</span></template></el-table-column>
         <el-table-column label="Transport company" prop="companyId" sortable="custom" min-width="220"><template #default="{ row }"><span class="link" @click="router.push('/companies/' + row.companyId)">{{ nameOf('companies', row.companyId) }}</span></template></el-table-column>
         <el-table-column label="Phone" prop="phone" sortable="custom" width="140" />
         <el-table-column label="Username" prop="account" sortable="custom" width="140" />

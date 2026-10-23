@@ -25,6 +25,7 @@ const routes = [
       { path: 'companies', component: v('Companies'), meta: { title: 'Transport companies' } },
       { path: 'companies/:id', component: v('CompanyDetail'), meta: { title: 'Transport company details' } },
       { path: 'drivers', component: v('Drivers'), meta: { title: 'Drivers' } },
+      { path: 'drivers/:id', component: v('DriverDetail'), meta: { title: 'Driver Details' } },
       { path: 'vehicles', component: v('Vehicles'), meta: { title: 'Vehicles' } },
       { path: 'vehicles/:id', component: v('VehicleDetail'), meta: { title: 'Vehicle Details' } },
       { path: 'pickups', component: v('Pickups'), meta: { title: 'Pump-outs' } },

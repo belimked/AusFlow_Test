@@ -22,7 +22,8 @@ function draw() {
   if (props.circle?.lat != null) {
     L.circle([props.circle.lat, props.circle.lng], { radius: props.circle.radius, color: '#409eff', weight: 1, fillOpacity: 0.08 }).addTo(layer)
   }
-  for (const line of props.lines) L.polyline(line, { color: '#909399', dashArray: '4 4', weight: 2 }).addTo(layer)
+  // Two-point lines are straight links (dashed); longer ones are road routes (solid).
+  for (const line of props.lines) L.polyline(line, line.length > 2 ? { color: '#409eff', weight: 3, opacity: 0.8 } : { color: '#909399', dashArray: '4 4', weight: 2 }).addTo(layer)
   for (const m of props.markers) {
     if (m.lat == null) continue
     pts.push([m.lat, m.lng])
