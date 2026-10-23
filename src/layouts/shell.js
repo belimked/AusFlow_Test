@@ -9,7 +9,8 @@ export const LAYOUTS = [
   { key: 'classic', label: 'Current' },
   { key: 'harbour', label: 'A · Top nav' },
   { key: 'rail', label: 'B · Icon rail' },
-  { key: 'calm', label: 'C · Light sidebar' }
+  { key: 'calm', label: 'C · Light sidebar' },
+  { key: 'hydro', label: 'D · Stitch' }
 ]
 const pick = (k) => (LAYOUTS.some((l) => l.key === k) ? k : null)
 export const layoutKey = ref(pick(new URLSearchParams(location.search).get('layout')) || pick(localStorage.getItem('layout')) || 'classic')

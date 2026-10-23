@@ -45,3 +45,101 @@ html[data-layout='calm'] .page { padding: 4px 32px 28px; }
 html[data-layout='calm'] .card { border-radius: 14px; border: 1px solid #e9eef3; box-shadow: none; padding: 20px; }
 html[data-layout='calm'] .el-table th.el-table__cell { background: #fff; color: #64748b; font-weight: 600; }
 html[data-layout='calm'] .link { color: #0369a1; }
+
+html[data-layout='hydro'] {
+  --font-head: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif;
+  --font-body: 'Inter Variable', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --el-font-family: var(--font-body);
+  --el-color-primary: #0369a1;
+  --el-color-primary-light-3: #4f96bd;
+  --el-color-primary-light-5: #81b4d0;
+  --el-color-primary-light-7: #b3d2e3;
+  --el-color-primary-light-8: #cde1ec;
+  --el-color-primary-light-9: #e6f0f6;
+  --el-color-primary-dark-2: #075985;
+  --el-color-success: #059669;
+  --el-color-success-light-3: #50b596;
+  --el-color-success-light-5: #82cbb4;
+  --el-color-success-light-7: #b4e0d2;
+  --el-color-success-light-8: #cdeae1;
+  --el-color-success-light-9: #ecfdf5;
+  --el-color-success-dark-2: #047854;
+  --el-color-warning: #d97706;
+  --el-color-warning-light-3: #e8a051;
+  --el-color-warning-light-5: #ecbb83;
+  --el-color-warning-light-7: #f4d6b4;
+  --el-color-warning-light-8: #f7e4cd;
+  --el-color-warning-light-9: #fffbeb;
+  --el-color-warning-dark-2: #ae5f05;
+  --el-color-danger: #e11d48;
+  --el-color-danger-light-3: #ea617f;
+  --el-color-danger-light-5: #f08ea4;
+  --el-color-danger-light-7: #f6bbc8;
+  --el-color-danger-light-8: #f9d2da;
+  --el-color-danger-light-9: #fff1f2;
+  --el-color-danger-dark-2: #be123c;
+  --el-color-error: #e11d48;
+  --el-border-radius-base: 4px;
+  --el-border-color: #cbd5e1;
+  --el-text-color-primary: #0f172a;
+  --el-text-color-regular: #1e293b;
+  --el-table-row-hover-bg-color: #f8fafc;
+  --el-table-border-color: #f1f5f9;
+}
+html[data-layout='hydro'] body { background: #f8fafc; font-family: var(--font-body); color: #1e293b; }
+html[data-layout='hydro'] .page { padding: 4px 32px 28px; }
+html[data-layout='hydro'] .card { border-radius: 8px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 1px 3px 0 rgba(15, 23, 42, .04), 0 1px 2px -1px rgba(15, 23, 42, .02); }
+html[data-layout='hydro'] .page-title, html[data-layout='hydro'] .card h3, html[data-layout='hydro'] .card h4 { font-family: var(--font-head); color: #0f172a; }
+html[data-layout='hydro'] .mono, html[data-layout='hydro'] .el-statistic__number { font-family: var(--font-mono); }
+html[data-layout='hydro'] .link { color: #0369a1; }
+html[data-layout='hydro'] .el-table th.el-table__cell { background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 600; border-bottom: 1px solid #cbd5e1; }
+html[data-layout='hydro'] .page-title { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+html[data-layout='hydro'] .el-descriptions__table.is-bordered .el-descriptions__cell { border-color: #eef2f6; padding: 10px 14px; }
+html[data-layout='hydro'] .el-descriptions__label.is-bordered-label { background: #f8fafc; color: #64748b; font-weight: 500; }
+html[data-layout='hydro'] .el-descriptions__content { color: #0f172a; }
+html[data-layout='hydro'] .el-tag:not(.el-tag--plain) { --el-tag-border-color: transparent; }
+html[data-layout='hydro'] .el-tag--light:is(.el-tag--success, .el-tag--warning, .el-tag--danger, .el-tag--info)::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; opacity: .85; flex: none; }
+html[data-layout='hydro'] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell { background: #fff; }
+html[data-layout='hydro'] .el-tag { border-radius: 4px; font-weight: 500; }
+html[data-layout='hydro'] .el-dialog, html[data-layout='hydro'] .el-drawer, html[data-layout='hydro'] .el-popper.is-light { box-shadow: 0 12px 24px -4px rgba(2, 132, 199, .08), 0 4px 8px -2px rgba(15, 23, 42, .04); }
+html[data-layout='hydro'] .el-dialog { border-radius: 12px; }
+
+/* iOS segmented control */
+html[data-layout='hydro'] .el-radio-group:has(> .el-radio-button) { display: inline-flex; flex-wrap: nowrap; gap: 2px; padding: 3px; border-radius: 9px; background: #eef1f5; }
+html[data-layout='hydro'] .el-radio-button .el-radio-button__inner { outline: none !important; border: 0 !important; box-shadow: none !important; background: transparent !important; border-radius: 7px !important; color: #475569; font-weight: 500; padding: 7px 14px; transition: background .2s, color .2s, box-shadow .2s; }
+html[data-layout='hydro'] .el-radio-button--small .el-radio-button__inner { padding: 5px 12px; }
+html[data-layout='hydro'] .el-radio-button:not(.is-active) .el-radio-button__inner:hover { color: #0f172a; }
+html[data-layout='hydro'] .el-radio-button.is-active .el-radio-button__original-radio:not(:disabled) + .el-radio-button__inner { background: #fff !important; color: #0f172a !important; font-weight: 600; box-shadow: 0 1px 3px rgba(15, 23, 42, .14), 0 1px 1px rgba(15, 23, 42, .06) !important; }
+html[data-layout='hydro'] .el-radio-button__original-radio:disabled + .el-radio-button__inner { opacity: .5; }
+
+/* iOS switch */
+html[data-layout='hydro'] .el-switch { --el-switch-on-color: #0284c7; --el-switch-off-color: #e2e8f0; height: 30px; }
+html[data-layout='hydro'] .el-switch:not(.el-switch--small) .el-switch__core { min-width: 46px; height: 28px; border: 0; border-radius: 14px; }
+html[data-layout='hydro'] .el-switch:not(.el-switch--small) .el-switch__core .el-switch__action { width: 24px; height: 24px; left: 2px; box-shadow: 0 2px 4px rgba(15, 23, 42, .2), 0 0 1px rgba(15, 23, 42, .15); }
+html[data-layout='hydro'] .el-switch:not(.el-switch--small).is-checked .el-switch__core .el-switch__action { left: calc(100% - 26px); }
+
+/* Apple-style buttons: gray-filled secondary, solid primary, no outlines */
+html[data-layout='hydro'] .el-button { --el-button-border-color: transparent; --el-button-hover-border-color: transparent; --el-button-active-border-color: transparent; border-radius: 8px; font-weight: 500; transition: background .15s, transform .1s; }
+html[data-layout='hydro'] .el-button:not(.is-link):not(.is-text):active { transform: scale(.97); }
+html[data-layout='hydro'] .el-button:not(.is-link):not(.is-text):not(.is-plain):not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info) {
+  --el-button-bg-color: #eef1f5; --el-button-text-color: #0369a1; --el-button-hover-bg-color: #e2e8f0; --el-button-hover-text-color: #075985; --el-button-active-bg-color: #d9e0e8; }
+html[data-layout='hydro'] .el-button--primary:not(.is-link):not(.is-text):not(.is-plain) { box-shadow: 0 1px 2px rgba(3, 105, 161, .3); }
+html[data-layout='hydro'] .el-table .el-button.is-link { height: 26px; padding: 0 8px; border-radius: 6px; font-size: 13px; font-weight: 500; background: #eef6fb; }
+html[data-layout='hydro'] .el-table .el-button.is-link:hover { background: #dbeefa; }
+html[data-layout='hydro'] .el-table .el-button--danger.is-link { background: #fff1f2; }
+html[data-layout='hydro'] .el-table .el-button--danger.is-link:hover { background: #ffe4e6; }
+html[data-layout='hydro'] .el-table .el-button--success.is-link { background: #ecfdf5; }
+html[data-layout='hydro'] .el-table .el-button--success.is-link:hover { background: #d1fae5; }
+html[data-layout='hydro'] .el-table .el-button.is-link + .el-button.is-link { margin-left: 4px; }
+html[data-layout='hydro'] .el-table .el-scrollbar__bar.is-horizontal { opacity: 1 !important; display: block !important; height: 8px; }
+html[data-layout='hydro'] .el-table .el-scrollbar__bar.is-horizontal .el-scrollbar__thumb { background: #cbd5e1; opacity: 1; }
+/* iOS-style segmented tabs */
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header { margin-bottom: 18px; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__nav-wrap::after { display: none; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__nav-wrap { flex: 0 1 auto; width: fit-content; max-width: 100%; padding: 3px; border-radius: 10px; background: #eef1f5; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__active-bar { display: none; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__nav { gap: 2px; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__item { height: 32px; padding: 0 14px !important; border-radius: 8px; color: #475569; font-weight: 500; transition: background .2s, color .2s, box-shadow .2s; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__item:hover { color: #0f172a; }
+html[data-layout='hydro'] .el-tabs--top:not(.el-tabs--card):not(.el-tabs--border-card) > .el-tabs__header .el-tabs__item.is-active { background: #fff; color: #0f172a; font-weight: 600; box-shadow: 0 1px 3px rgba(15, 23, 42, .14), 0 1px 1px rgba(15, 23, 42, .06); }

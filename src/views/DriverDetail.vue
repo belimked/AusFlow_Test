@@ -5,68 +5,64 @@
       {{ drv.name }}
       <el-tag :type="TAG[drv.status]">{{ DRIVER_STATUS[drv.status] }}</el-tag>
     </h2>
-    <el-row :gutter="12">
-      <el-col :span="8">
-        <div class="card">
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="Transport company"><span class="link" @click="router.push('/companies/' + drv.companyId)">{{ nameOf('companies', drv.companyId) }}</span></el-descriptions-item>
-            <el-descriptions-item label="Phone">{{ drv.phone || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Username">{{ drv.account || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Registered">{{ fmtDate(drv.createdAt) }}</el-descriptions-item>
-          </el-descriptions>
+    <div class="top-row">
+      <div class="card profile">
+        <div class="pf-head">
+          <span class="pf-avatar">{{ initials }}</span>
+          <div><b>{{ drv.name }}</b><span class="link" @click="router.push('/companies/' + drv.companyId)">{{ nameOf('companies', drv.companyId) }}</span></div>
         </div>
-        <div class="card">
-          <h4 style="margin: 0 0 8px">Work summary <span class="muted">(all history)</span></h4>
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="Days worked">{{ days.length }}</el-descriptions-item>
-            <el-descriptions-item label="Pump-outs completed">{{ stats.jobs }}</el-descriptions-item>
-            <el-descriptions-item label="Pump-outs per working day">{{ stats.jobsPerDay }}</el-descriptions-item>
-            <el-descriptions-item label="Average pump-out duration">{{ fmtDur(stats.avgJob) }}</el-descriptions-item>
-            <el-descriptions-item label="Average gap between steps">{{ fmtDur(stats.avgGap) }}</el-descriptions-item>
-            <el-descriptions-item label="Average straight-line distance between steps">{{ fmtM(stats.avgHop) }}</el-descriptions-item>
-            <el-descriptions-item label="Steps without GPS"><span :class="{ orange: stats.noGps }">{{ stats.noGps }}</span></el-descriptions-item>
-            <el-descriptions-item label="Slow legs (gap far above expected drive)"><span :class="{ red: stats.slow }">{{ stats.slow }}</span></el-descriptions-item>
-            <el-descriptions-item label="Location mismatch / over capacity"><span :class="{ red: stats.flagLocation + stats.flagCapacity }">{{ stats.flagLocation }} / {{ stats.flagCapacity }}</span></el-descriptions-item>
-            <el-descriptions-item label="Transfers / unloads">{{ stats.transfers }} / {{ stats.unloads }}</el-descriptions-item>
-          </el-descriptions>
-          <div class="muted" style="font-size: 12px; margin-top: 6px">These figures are the inputs for a future driver score; nothing is scored yet.</div>
-        </div>
-      </el-col>
-      <el-col :span="16">
-        <div class="card">
-          <div class="toolbar" style="margin-bottom: 8px">
-            <el-select v-model="dayKey" placeholder="Day" filterable style="width: 260px">
-              <el-option v-for="d in days" :key="d.key" :value="d.key" :label="`${d.label} · ${d.steps.length} steps`" />
-            </el-select>
-            <el-button :loading="routing" :disabled="!day || !routable" @click="planRoutes">{{ routed ? 'Routes planned' : 'Plan routes (OSRM)' }}</el-button>
-            <span class="muted" style="font-size: 12px">Road route and drive time between consecutive steps, via OpenStreetMap routing.</span>
+        <dl class="pf-list">
+          <div><dt>Phone</dt><dd class="mono">{{ drv.phone || '—' }}</dd></div>
+          <div><dt>Username</dt><dd class="mono">{{ drv.account || '—' }}</dd></div>
+          <div><dt>Registered</dt><dd class="mono">{{ fmtDate(drv.createdAt) }}</dd></div>
+          <div><dt>Status</dt><dd>{{ DRIVER_STATUS[drv.status] }}</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h4 style="margin: 0 0 8px">Work summary <span class="muted">(all history)</span></h4>
+        <div class="stat-grid">
+          <div v-for="s in summaryTiles" :key="s.label" class="stat" :class="s.tone" :title="s.hint">
+            <small>{{ s.label }}</small><b class="mono">{{ s.value }}</b>
           </div>
-          <MapView :markers="markers" :lines="lines" :height="340" />
-          <div class="muted" style="font-size: 12px; margin-top: 6px">Numbered in order of the day · Green: pump-out · Blue: transfer · Purple: unload · Dashed: straight line, solid: planned road route</div>
         </div>
-      </el-col>
-    </el-row>
+        <div class="muted" style="font-size: 12px; margin-top: 6px">These figures are the inputs for a future driver score; nothing is scored yet.</div>
+      </div>
+    </div>
 
-    <div class="card">
-      <h4 style="margin: 0 0 8px">Working days ({{ days.length }}) <span class="muted" style="font-weight: normal; font-size: 12px">· click a day to open its timeline below</span></h4>
-      <el-table :data="pagedDays" size="small" stripe @row-click="openDay" :row-class-name="({ row }) => (row.key === dayKey ? 'current-day' : '')" class="days-table">
-        <el-table-column label="Date" width="150"><template #default="{ row }"><span class="link">{{ row.label }}</span></template></el-table-column>
-        <el-table-column label="Pump-outs" width="95" align="right"><template #default="{ row }">{{ row.jobs }}</template></el-table-column>
-        <el-table-column label="Transfers" width="85" align="right"><template #default="{ row }">{{ row.transfers }}</template></el-table-column>
-        <el-table-column label="Unloads" width="80" align="right"><template #default="{ row }">{{ row.unloads }}</template></el-table-column>
-        <el-table-column label="First start" width="90"><template #default="{ row }">{{ fmtClock(row.first) }}</template></el-table-column>
-        <el-table-column label="Last end" width="85"><template #default="{ row }">{{ fmtClock(row.last) }}</template></el-table-column>
-        <el-table-column label="Span" width="90"><template #default="{ row }">{{ fmtDur(row.span) }}</template></el-table-column>
-        <el-table-column label="Gaps total" width="95"><template #default="{ row }">{{ fmtDur(row.totalGap) }}</template></el-table-column>
-        <el-table-column label="Straight line" width="100"><template #default="{ row }">{{ fmtM(row.totalStraight) }}</template></el-table-column>
-        <el-table-column label="No GPS" width="75" align="right"><template #default="{ row }"><span :class="{ orange: row.noGps }">{{ row.noGps }}</span></template></el-table-column>
-        <el-table-column label="Slow legs" width="85" align="right"><template #default="{ row }"><span :class="{ red: row.slow }">{{ row.slow }}</span></template></el-table-column>
-        <el-table-column label="Mismatch / capacity" width="135" align="right"><template #default="{ row }"><span :class="{ red: row.other }">{{ row.other }}</span></template></el-table-column>
-        <el-table-column min-width="110" align="right">
-          <template #default="{ row }"><el-button link type="primary" size="small">{{ row.key === dayKey ? 'Showing ↓' : 'Timeline →' }}</el-button></template>
-        </el-table-column>
-      </el-table>
-      <Pager v-model:page="page" v-model:page-size="pageSize" :total="days.length" />
+    <div class="work-row">
+      <div class="card">
+        <h4 style="margin: 0 0 8px">Working days ({{ days.length }}) <span class="muted" style="font-weight: normal; font-size: 12px">· click a day to show it on the map and open its log below</span></h4>
+        <el-table :data="pagedDays" size="small" @row-click="openDay" :row-class-name="({ row }) => (row.key === dayKey ? 'current-day' : '')" class="days-table">
+          <el-table-column label="Date" width="130"><template #default="{ row }"><span class="link">{{ row.label }}</span></template></el-table-column>
+          <el-table-column label="Jobs (P · T · U)" width="115"><template #default="{ row }"><span class="mono" title="Pump-outs · transfers · unloads">{{ row.jobs }} · {{ row.transfers }} · {{ row.unloads }}</span></template></el-table-column>
+          <el-table-column label="Time" width="125">
+            <template #default="{ row }"><div class="mono">{{ fmtClock(row.first) }}–{{ fmtClock(row.last) }}</div><div class="muted sub">{{ fmtDur(row.span) }}</div></template>
+          </el-table-column>
+          <el-table-column label="Gaps" width="85"><template #default="{ row }">{{ fmtDur(row.totalGap) }}</template></el-table-column>
+          <el-table-column label="Distance" width="85"><template #default="{ row }">{{ fmtM(row.totalStraight) }}</template></el-table-column>
+          <el-table-column label="Flags" min-width="130">
+            <template #default="{ row }">
+              <div class="flags">
+                <el-tag v-if="row.noGps" size="small" type="warning">{{ row.noGps }} no GPS</el-tag>
+                <el-tag v-if="row.slow" size="small" type="danger">{{ row.slow }} slow</el-tag>
+                <el-tag v-if="row.other" size="small" type="danger">{{ row.other }} mismatch</el-tag>
+                <span v-if="!row.noGps && !row.slow && !row.other" class="muted">—</span>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+        <Pager v-model:page="page" v-model:page-size="pageSize" :total="days.length" />
+      </div>
+      <div class="card map-card">
+        <div class="toolbar" style="margin-bottom: 8px; flex-wrap: nowrap">
+          <el-select v-model="dayKey" placeholder="Day" filterable style="flex: 1; min-width: 0">
+            <el-option v-for="d in days" :key="d.key" :value="d.key" :label="`${d.label} · ${d.steps.length} steps`" />
+          </el-select>
+          <el-button :loading="routing" :disabled="!day || !routable" @click="planRoutes">{{ routed ? 'Routes planned' : 'Plan routes (OSRM)' }}</el-button>
+        </div>
+        <MapView :markers="markers" :lines="lines" :height="500" />
+        <div class="muted" style="font-size: 12px; margin-top: 6px">Numbered in order of the day · Green: pump-out · Blue: transfer · Purple: unload · Dashed: straight line, solid: road route (OSRM)</div>
+      </div>
     </div>
 
     <div class="card" v-if="day" ref="dayCard">
@@ -136,6 +132,7 @@ const FLAGS = { nogps: 'No GPS', location: 'Location mismatch', capacity: 'Over 
 const ROAD_FACTOR = 1.3, EST_SPEED_KMH = 40, SLOW_MIN_MIN = 60
 const route = useRoute(), router = useRouter()
 const drv = computed(() => idx.drivers.value.get(route.params.id))
+const initials = computed(() => (drv.value?.name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())
 
 const pos = (lat, lng) => (lat == null || lng == null ? null : { lat, lng })
 const ms = (s) => (s ? new Date(s).getTime() : null)
@@ -264,10 +261,46 @@ const stats = computed(() => {
     transfers: all.filter((s) => s.kind === 'transfer').length, unloads: all.filter((s) => s.kind === 'unload').length
   }
 })
+const summaryTiles = computed(() => {
+  const s = stats.value
+  return [
+    { label: 'Days worked', value: days.value.length },
+    { label: 'Pump-outs completed', value: s.jobs },
+    { label: 'Pump-outs per day', value: s.jobsPerDay },
+    { label: 'Avg pump-out duration', value: fmtDur(s.avgJob) },
+    { label: 'Avg gap between steps', value: fmtDur(s.avgGap) },
+    { label: 'Avg distance between steps', value: fmtM(s.avgHop), hint: 'Straight-line distance' },
+    { label: 'Steps without GPS', value: s.noGps, tone: s.noGps ? 'warn' : '' },
+    { label: 'Slow legs', value: s.slow, tone: s.slow ? 'bad' : '', hint: 'Gap far above expected drive' },
+    { label: 'Location mismatch / over cap.', value: `${s.flagLocation} / ${s.flagCapacity}`, tone: s.flagLocation + s.flagCapacity ? 'bad' : '' },
+    { label: 'Transfers / unloads', value: `${s.transfers} / ${s.unloads}` }
+  ]
+})
 </script>
 
 <style scoped>
 .days-table :deep(.el-table__row) { cursor: pointer; }
 .days-table :deep(.current-day > td.el-table__cell) { background: var(--el-color-primary-light-8) !important; font-weight: 600; }
 .orange { color: var(--el-color-warning); }
+.stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.top-row { display: grid; grid-template-columns: 1fr 2.4fr; gap: 12px; margin-bottom: 12px; }
+.work-row { display: grid; grid-template-columns: 7fr 5fr; gap: 12px; margin-bottom: 12px; align-items: start; }
+.top-row > .card, .work-row > .card { margin-top: 0; }
+.pf-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+.pf-head b { display: block; font-size: 16px; color: #0f172a; }
+.pf-head .link { font-size: 13px; }
+.pf-avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; background: #e0f2fe; color: #0369a1; font-weight: 700; }
+.pf-list { margin: 4px 0 0; }
+.pf-list > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f8fafc; font-size: 13px; }
+.pf-list dt { color: #64748b; }
+.pf-list dd { margin: 0; color: #0f172a; }
+.flags { display: flex; flex-wrap: wrap; gap: 4px; }
+.sub { font-size: 11px; }
+.stat { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid #eef2f6; border-radius: 8px; background: #f8fafc; }
+.stat small { font-size: 12px; color: #64748b; }
+.stat b { font-size: 18px; font-weight: 600; color: #0f172a; }
+.stat.warn { background: #fffbeb; border-color: #fde68a; }
+.stat.warn b { color: #b45309; }
+.stat.bad { background: #fff1f2; border-color: #fecdd3; }
+.stat.bad b { color: #be123c; }
 </style>

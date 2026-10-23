@@ -23,7 +23,7 @@
         <el-table-column label="Photos" width="90" align="center"><template #default="{ row }">
           <el-button link type="primary" :icon="'Picture'" @click="openPhotos(row)">{{ photoCounts[row.id] || 0 }}</el-button>
         </template></el-table-column>
-        <el-table-column v-if="can('write')" label="Actions" width="190" fixed="right"><template #default="{ row }">
+        <el-table-column v-if="can('write')" label="Actions" width="210" fixed="right"><template #default="{ row }">
           <template v-if="row.status === 'pending'">
             <el-button link type="success" @click="setStatus(row, 'active', 'approved')">Approve</el-button>
             <el-button link type="danger" @click="reject(row)">Reject</el-button>

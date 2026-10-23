@@ -22,12 +22,14 @@
         <el-select v-model="f.freq" placeholder="Frequency" clearable style="width: 165px"><el-option label="Has frequency" value="has" /><el-option label="No frequency" value="none" /></el-select>
         <el-select v-model="f.custodian" placeholder="Custodian" clearable style="width: 170px"><el-option label="(Unspecified)" value="none" /><el-option v-for="(label, key) in CUSTODIAN" :key="key" :label="label" :value="key" /></el-select>
         <el-select v-model="f.overdue" placeholder="Overdue" clearable style="width: 195px"><el-option label="Overdue" value="1" /><el-option label="Overdue > 3 months" value="3m" /><el-option label="Overdue > 6 months" value="6m" /></el-select>
+      </div>
+      <div class="toolbar">
+        <span class="muted">{{ filtered.length.toLocaleString() }} devices, <span class="red">{{ overdueCount }}</span> overdue</span>
         <span class="spacer" />
         <el-button @click="download">Export CSV</el-button>
         <el-button v-can="'write'" :icon="'Upload'" @click="router.push('/import')">CSV Import</el-button>
         <el-button v-can="'write'" type="primary" :icon="'Plus'" @click="openNew()">Add Device</el-button>
       </div>
-      <div class="muted" style="margin-bottom: 8px">{{ filtered.length.toLocaleString() }} devices, <span class="red">{{ overdueCount }}</span> overdue</div>
       <DeviceTable :rows="filtered" @sorted="(v) => (sorted = v)">
         <el-table-column v-if="can('write')" label="Actions" width="190" fixed="right">
           <template #default="{ row }">

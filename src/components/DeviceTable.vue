@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-table @sort-change="onSort" :data="paged" stripe size="small">
-      <el-table-column label="Device Ref" prop="ref" sortable="custom" width="100" fixed>
+      <el-table-column label="Device Ref" prop="ref" sortable="custom" width="118" fixed>
         <template #default="{ row }"><span class="link" @click="router.push('/devices/' + row.id)">{{ row.ref }}</span></template>
       </el-table-column>
       <el-table-column label="Device name" prop="aka" sortable="custom" min-width="170" show-overflow-tooltip />

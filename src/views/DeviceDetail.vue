@@ -37,15 +37,6 @@
                 <el-descriptions-item label="Device type"><InlineField :device="dev" field="type">{{ dev.type || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Waste type"><InlineField :device="dev" field="waste"><WasteType :text="dev.waste" /></InlineField></el-descriptions-item>
                 <el-descriptions-item label="Capacity"><InlineField :device="dev" field="capacity">{{ fmtL(dev.capacity) }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Approval category"><InlineField :device="dev" field="approvalCategory">{{ dev.approvalCategory || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Risk rating"><InlineField :device="dev" field="risk">{{ dev.risk || '—' }}</InlineField></el-descriptions-item>
-                <el-descriptions-item label="Responsible transport company" :span="2"><InlineField :device="dev" field="companyId">
-                  <span v-if="dev.companyId" class="link" @click="router.push('/companies/' + dev.companyId)">{{ nameOf('companies', dev.companyId) }}</span><span v-else>—</span>
-                </InlineField></el-descriptions-item>
-                <el-descriptions-item label="Owner"><InlineField :device="dev" field="ownerId">
-                  <span v-if="dev.ownerId" class="link" @click="router.push('/companies/' + dev.ownerId)">{{ nameOf('companies', dev.ownerId) }}</span><span v-else>—</span>
-                </InlineField></el-descriptions-item>
-                <el-descriptions-item label="Occupier"><span v-if="loc?.occupierId" class="link" @click="router.push('/companies/' + loc.occupierId)">{{ nameOf('companies', loc.occupierId) }}</span><span v-else>—</span></el-descriptions-item>
                 <el-descriptions-item label="Location description" :span="2"><InlineField :device="dev" field="locationDesc">{{ dev.locationDesc || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Comments" :span="2"><InlineField :device="dev" field="comments">{{ dev.comments || '—' }}</InlineField></el-descriptions-item>
                 <el-descriptions-item label="Coordinates" :span="2"><InlineField :device="dev" field="coords">{{ typeof dev.lat === 'number' && typeof dev.lng === 'number' ? `${dev.lat.toFixed(6)}, ${dev.lng.toFixed(6)}` : 'Not set' }}</InlineField></el-descriptions-item>
@@ -53,6 +44,29 @@
               <MapView :markers="markers" :height="220" style="margin-top: 12px" />
             </el-col>
             <el-col :span="9">
+              <div class="side-panel">
+                <div class="sp-head">Responsibility &amp; compliance</div>
+                <div class="sp-row">
+                  <label>Responsible transport company</label>
+                  <InlineField :device="dev" field="companyId">
+                    <span v-if="dev.companyId" class="link" @click="router.push('/companies/' + dev.companyId)">{{ nameOf('companies', dev.companyId) }}</span><span v-else class="muted">Not assigned</span>
+                  </InlineField>
+                </div>
+                <div class="sp-row">
+                  <label>Owner</label>
+                  <InlineField :device="dev" field="ownerId">
+                    <span v-if="dev.ownerId" class="link" @click="router.push('/companies/' + dev.ownerId)">{{ nameOf('companies', dev.ownerId) }}</span><span v-else class="muted">Not set</span>
+                  </InlineField>
+                </div>
+                <div class="sp-row">
+                  <label>Occupier</label>
+                  <div><span v-if="loc?.occupierId" class="link" @click="router.push('/companies/' + loc.occupierId)">{{ nameOf('companies', loc.occupierId) }}</span><span v-else class="muted">Not set</span></div>
+                </div>
+                <div class="sp-pair">
+                  <div class="sp-row"><label>Approval category</label><InlineField :device="dev" field="approvalCategory">{{ dev.approvalCategory || '—' }}</InlineField></div>
+                  <div class="sp-row"><label>Risk rating</label><InlineField :device="dev" field="risk">{{ dev.risk || '—' }}</InlineField></div>
+                </div>
+              </div>
               <div style="text-align: center"><QrCode :value="tagsOf(dev)[0] || ''" :system-ref="dev.ref" :title="dev.ref + ' ' + (dev.aka || '')" :subtitle="loc?.name" :size="200"
                 editable :validate="qrTaken" @change="setQr" /></div>
               <el-divider />
@@ -235,6 +249,12 @@ function setQr(code) {
 }
 </script>
 <style scoped>
-.dev-info :deep(.el-descriptions__label) { width: 150px; }
+.dev-info :deep(.el-descriptions__label) { width: 150px; white-space: nowrap; }
+.side-panel { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 16px 8px; margin-bottom: 16px; }
+.sp-head { padding: 10px 0; margin-bottom: 4px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #64748b; }
+.sp-row { padding: 8px 0; }
+.sp-row + .sp-row, .sp-pair { border-top: 1px solid #f1f5f9; }
+.sp-row label { display: block; margin-bottom: 2px; font-size: 12px; color: #64748b; }
+.sp-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .nearby-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 </style>
