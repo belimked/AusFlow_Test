@@ -47,7 +47,7 @@
             <template #default="{ row }">
               <div class="flags">
                 <el-tag v-if="row.noGps" size="small" type="warning">{{ row.noGps }} no GPS</el-tag>
-                <el-tag v-if="row.slow" size="small" type="danger">{{ row.slow }} slow</el-tag>
+                <el-tooltip v-if="row.slow" placement="top" :content="`${row.slow} leg(s) where the time to the next step is far longer than the drive should take. Click the day to see which.`"><el-tag size="small" type="danger" style="cursor: help">{{ row.slow }} slow</el-tag></el-tooltip>
                 <el-tag v-if="row.other" size="small" type="danger">{{ row.other }} mismatch</el-tag>
                 <span v-if="!row.noGps && !row.slow && !row.other" class="muted">—</span>
               </div>
@@ -90,28 +90,30 @@
             <div v-if="row.kind === 'pickup' && row.distance != null" class="muted" style="font-size: 12px" :class="{ red: row.distance > 200 }">{{ fmtM(row.distance) }} from device</div>
           </template>
         </el-table-column>
-        <el-table-column label="Gap to next" width="95"><template #default="{ row }">{{ row.next ? fmtDur(row.next.gap) : '—' }}</template></el-table-column>
-        <el-table-column label="Straight line" width="95"><template #default="{ row }">{{ row.next ? fmtM(row.next.straight) : '—' }}</template></el-table-column>
+        <el-table-column label="Gap from prev." width="95"><template #default="{ $index }">{{ legIn($index) ? fmtDur(legIn($index).gap) : '—' }}</template></el-table-column>
+        <el-table-column label="Straight line" width="95"><template #default="{ $index }">{{ legIn($index) ? fmtM(legIn($index).straight) : '—' }}</template></el-table-column>
         <el-table-column label="Expected drive" width="150">
-          <template #default="{ row }">
-            <template v-if="row.next?.route">{{ fmtDur(row.next.drive) }} · {{ fmtM(row.next.route.distanceM) }}</template>
-            <span v-else-if="row.next?.drive != null" class="muted">~{{ fmtDur(row.next.drive) }} (est.)</span>
-            <span v-else-if="row.next" class="muted">no GPS</span>
+          <template #default="{ $index }">
+            <template v-if="legIn($index)?.route">{{ fmtDur(legIn($index).drive) }} · {{ fmtM(legIn($index).route.distanceM) }}</template>
+            <span v-else-if="legIn($index)?.drive != null" class="muted">~{{ fmtDur(legIn($index).drive) }} (est.)</span>
+            <span v-else-if="legIn($index)" class="muted">no GPS</span>
             <span v-else>—</span>
           </template>
         </el-table-column>
         <el-table-column label="Over expected" width="150">
-          <template #default="{ row }">
-            <template v-if="row.next?.over != null">
-              <span :class="{ red: row.next.slow }">+{{ fmtDur(Math.max(0, row.next.over)) }}</span>
-              <el-tag v-if="row.next.slow" size="small" type="danger" style="margin-left: 4px">Slow leg</el-tag>
+          <template #default="{ $index }">
+            <template v-if="legIn($index)?.over != null">
+              <span :class="{ red: legIn($index).slow }">+{{ fmtDur(Math.max(0, legIn($index).over)) }}</span>
+              <el-tooltip v-if="legIn($index).slow" placement="top" :content="`Step ${$index} → ${$index + 1}: gap ${fmtDur(legIn($index).gap)}, expected drive ${fmtDur(legIn($index).drive)}, over by ${fmtDur(legIn($index).over)}. Flagged because the extra time is over ${SLOW_MIN_MIN} min and more than the expected drive itself.`">
+                <el-tag size="small" type="danger" style="margin-left: 4px; cursor: help">Slow leg</el-tag>
+              </el-tooltip>
             </template>
             <span v-else>—</span>
           </template>
         </el-table-column>
       </el-table>
       <div class="muted" style="font-size: 12px; margin-top: 8px">
-        Gap = next step start − this step end. Expected drive = OSRM road time when routes are planned, otherwise straight line × {{ ROAD_FACTOR }} at {{ EST_SPEED_KMH }} km/h.
+        Each row shows the leg from the previous step to this one. Gap = this step start − previous step end. Expected drive = OSRM road time when routes are planned, otherwise straight line × {{ ROAD_FACTOR }} at {{ EST_SPEED_KMH }} km/h.
         Slow leg = gap exceeds expected drive by more than {{ SLOW_MIN_MIN }} min and by more than the expected drive itself.
         Day totals: gaps {{ fmtDur(day.totalGap) }} · straight line {{ fmtM(day.totalStraight) }}<template v-if="routed"> · road {{ fmtDur(day.totalDrive) }} / {{ fmtM(day.totalDriveM) }}</template> · slow legs {{ day.slow }} · steps without GPS {{ day.noGps }}
       </div>
@@ -216,6 +218,7 @@ const days = computed(() => {
 const dayKey = ref('')
 watch(days, (list) => { if (!list.some((d) => d.key === dayKey.value)) dayKey.value = list[0]?.key || '' }, { immediate: true })
 const day = computed(() => days.value.find((d) => d.key === dayKey.value))
+const legIn = (i) => day.value?.steps[i - 1]?.next ?? null
 const page = ref(1), pageSize = ref(20)
 const range = ref(null)
 const filteredDays = computed(() => (range.value ? days.value.filter((d) => d.key >= range.value[0] && d.key <= range.value[1]) : days.value))
