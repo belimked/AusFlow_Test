@@ -1,0 +1,47 @@
+html[data-layout='harbour'] {
+  --el-color-primary: #0f766e;
+  --el-color-primary-light-3: #579f9a;
+  --el-color-primary-light-5: #87bbb7;
+  --el-color-primary-light-7: #b7d6d4;
+  --el-color-primary-light-8: #cfe4e2;
+  --el-color-primary-light-9: #e7f1f0;
+  --el-color-primary-dark-2: #0c5e58;
+  --el-border-radius-base: 8px;
+}
+html[data-layout='harbour'] body { background: #f4f7f6; }
+html[data-layout='harbour'] .page { padding: 20px 28px; }
+html[data-layout='harbour'] .card { border-radius: 10px; border: 1px solid #e3eae8; box-shadow: none; }
+html[data-layout='harbour'] .el-table th.el-table__cell { background: #f3f8f7; color: #36534f; }
+html[data-layout='harbour'] .link { color: #0f766e; }
+
+html[data-layout='rail'] {
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #847eed;
+  --el-color-primary-light-5: #a7a3f2;
+  --el-color-primary-light-7: #cac8f7;
+  --el-color-primary-light-8: #dcdafa;
+  --el-color-primary-light-9: #ededfc;
+  --el-color-primary-dark-2: #3f38b7;
+  --el-border-radius-base: 8px;
+}
+html[data-layout='rail'] body { background: #f5f6fa; }
+html[data-layout='rail'] .page { padding: 20px 24px; }
+html[data-layout='rail'] .card { border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 23, 42, .06), 0 1px 2px rgba(15, 23, 42, .04); }
+html[data-layout='rail'] .el-table th.el-table__cell { background: #f8f9fc; color: #475569; font-weight: 600; }
+html[data-layout='rail'] .link { color: #4f46e5; }
+
+html[data-layout='calm'] {
+  --el-color-primary: #0369a1;
+  --el-color-primary-light-3: #4f96bd;
+  --el-color-primary-light-5: #81b4d0;
+  --el-color-primary-light-7: #b3d2e3;
+  --el-color-primary-light-8: #cde1ec;
+  --el-color-primary-light-9: #e6f0f6;
+  --el-color-primary-dark-2: #025481;
+  --el-border-radius-base: 10px;
+}
+html[data-layout='calm'] body { background: #f7f9fb; }
+html[data-layout='calm'] .page { padding: 4px 32px 28px; }
+html[data-layout='calm'] .card { border-radius: 14px; border: 1px solid #e9eef3; box-shadow: none; padding: 20px; }
+html[data-layout='calm'] .el-table th.el-table__cell { background: #fff; color: #64748b; font-weight: 600; }
+html[data-layout='calm'] .link { color: #0369a1; }
