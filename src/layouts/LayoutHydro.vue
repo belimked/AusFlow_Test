@@ -32,6 +32,7 @@
             </button>
             <div v-show="open.has(g.key)" class="leaves">
               <a v-for="i in g.items" :key="i.path" class="leaf" :class="{ on: i.path === active }" @click="go(i.path)">
+                <el-icon class="leaf-icon"><component :is="i.icon" /></el-icon>
                 <span>{{ i.label }}</span>
                 <span v-if="i.badge && unreadCount" class="cnt mono">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
                 <i v-else-if="i.path === active" class="on-dot" />
@@ -118,6 +119,9 @@ const critical = computed(() => activeAlerts.value.filter((a) => a.severity === 
 .leaf { position: relative; display: flex; align-items: center; height: 34px; padding: 0 10px; border-radius: 4px; color: #475569; font-size: 13.5px; cursor: pointer; }
 .leaf:hover { background: #f8fafc; color: #0f172a; }
 .leaf.on { background: #f0f9ff; color: #0369a1; font-weight: 600; }
+.leaf-icon { flex: none; margin-right: 8px; font-size: 15px; color: #94a3b8; }
+.leaf:hover .leaf-icon { color: #475569; }
+.leaf.on .leaf-icon { color: #0369a1; }
 .leaf.on::before { content: ''; position: absolute; left: -14px; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: #0284c7; }
 .on-dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: #0369a1; }
 .cnt { margin-left: auto; font-size: 11px; padding: 0 6px; line-height: 18px; border-radius: 4px; background: #ffe4e6; color: #9f1239; }

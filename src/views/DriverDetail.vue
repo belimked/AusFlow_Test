@@ -31,8 +31,11 @@
 
     <div class="work-row">
       <div class="card">
-        <h4 style="margin: 0 0 8px">Working days ({{ days.length }}) <span class="muted" style="font-weight: normal; font-size: 12px">· click a day to show it on the map and open its log below</span></h4>
-        <el-table :data="pagedDays" size="small" @row-click="openDay" :row-class-name="({ row }) => (row.key === dayKey ? 'current-day' : '')" class="days-table">
+        <div class="days-head">
+          <h4 style="margin: 0">Working days ({{ range ? `${filteredDays.length} / ${days.length}` : days.length }}) <span class="muted" style="font-weight: normal; font-size: 12px">· click a day for its map and log</span></h4>
+          <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" start-placeholder="From" end-placeholder="To" size="small" style="width: 240px; flex: none" />
+        </div>
+        <el-table :data="pagedDays" size="small" :max-height="480" @row-click="openDay" :row-class-name="({ row }) => (row.key === dayKey ? 'current-day' : '')" class="days-table">
           <el-table-column label="Date" width="130"><template #default="{ row }"><span class="link">{{ row.label }}</span></template></el-table-column>
           <el-table-column label="Jobs (P · T · U)" width="115"><template #default="{ row }"><span class="mono" title="Pump-outs · transfers · unloads">{{ row.jobs }} · {{ row.transfers }} · {{ row.unloads }}</span></template></el-table-column>
           <el-table-column label="Time" width="125">
@@ -51,7 +54,7 @@
             </template>
           </el-table-column>
         </el-table>
-        <Pager v-model:page="page" v-model:page-size="pageSize" :total="days.length" />
+        <Pager v-model:page="page" v-model:page-size="pageSize" :total="filteredDays.length" />
       </div>
       <div class="card map-card">
         <div class="toolbar" style="margin-bottom: 8px; flex-wrap: nowrap">
@@ -214,7 +217,13 @@ const dayKey = ref('')
 watch(days, (list) => { if (!list.some((d) => d.key === dayKey.value)) dayKey.value = list[0]?.key || '' }, { immediate: true })
 const day = computed(() => days.value.find((d) => d.key === dayKey.value))
 const page = ref(1), pageSize = ref(20)
-const pagedDays = computed(() => days.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
+const range = ref(null)
+const filteredDays = computed(() => (range.value ? days.value.filter((d) => d.key >= range.value[0] && d.key <= range.value[1]) : days.value))
+watch(range, () => {
+  page.value = 1
+  if (filteredDays.value.length && !filteredDays.value.some((d) => d.key === dayKey.value)) dayKey.value = filteredDays.value[0].key
+})
+const pagedDays = computed(() => filteredDays.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 const dayCard = ref(null)
 async function openDay(d) {
   dayKey.value = d.key
@@ -279,6 +288,7 @@ const summaryTiles = computed(() => {
 </script>
 
 <style scoped>
+.days-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .days-table :deep(.el-table__row) { cursor: pointer; }
 .days-table :deep(.current-day > td.el-table__cell) { background: var(--el-color-primary-light-8) !important; font-weight: 600; }
 .orange { color: var(--el-color-warning); }

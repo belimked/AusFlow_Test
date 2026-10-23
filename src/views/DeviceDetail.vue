@@ -6,7 +6,7 @@
       <el-tag :type="{ Active: 'success', Inactive: 'info', Removed: 'danger' }[dev.status]">{{ DEVICE_STATUS[dev.status] }}</el-tag>
       <el-tag v-if="isOverdue(dev)" type="danger" effect="dark">{{ overdueText(dev) }}</el-tag>
       <span style="flex: 1" />
-      <el-button tag="a" :href="`${TWAIN_URL}/#/psid/${encodeURIComponent(dev.ref)}`" target="_blank" rel="noopener" :icon="'Link'">View in TWAIN</el-button>
+      <el-button tag="a" :href="`${TWAIN_URL}/#/psid/${encodeURIComponent(dev.ref)}`" target="_blank" rel="noopener" :icon="'Link'">View in Salesforce</el-button>
       <el-button v-can="'write'" @click="tab = 'notes'; noteDialog = true">Add note</el-button>
       <el-button v-can="'write'" @click="tab = 'inspections'; inspectDialog = true">Inspect</el-button>
       <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
