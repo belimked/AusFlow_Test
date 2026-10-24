@@ -29,7 +29,7 @@
         <el-tab-pane v-if="isTransport(co)" :label="`Drivers (${drivers.length})`" name="drivers">
           <div v-can="'write'" style="text-align: right; margin-bottom: 10px"><el-button type="primary" @click="driverDlg = true">Add driver</el-button></div>
           <el-table :data="drivers" size="small" stripe>
-            <el-table-column prop="name" label="Name" />
+            <el-table-column label="Name"><template #default="{ row }"><span class="link" @click="router.push('/drivers/' + row.id)">{{ row.name }}</span></template></el-table-column>
             <el-table-column prop="phone" label="Phone" />
             <el-table-column prop="account" label="Username" />
             <el-table-column label="Status"><template #default="{ row }"><el-tag size="small" :type="DRIVER_TAG[row.status]">{{ DRIVER_STATUS[row.status] }}</el-tag></template></el-table-column>

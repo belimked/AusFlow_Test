@@ -21,9 +21,13 @@ const COMPANIES = [
   ['Riverside Environmental Pty Ltd', '13 000 943 812', 'Sarah Nguyen', '07 3341 2200', '3 Kingston Rd, Underwood QLD 4119'],
   ['Apex Trade Waste Group', '56 128 334 902', 'David Kelly', '07 3271 3300', '27 Boundary Rd, Rocklea QLD 4106'],
   ['Summit Liquid Services', '78 002 688 158', 'Emma Wilson', '07 3277 4400', '58 Tile St, Wacol QLD 4076'],
-  ['Clearflow Waste Solutions', '41 615 002 377', 'James Patel', '07 3390 5500', '9 Lytton Rd, Hemmant QLD 4174'],
-  ['Peninsula Pumping Co', '22 097 456 118', 'Olivia Chen', '07 3807 6600', '41 Mudgee St, Kingston QLD 4114']
+  ['Clearflow Waste Solutions', '41 615 002 377', 'James Patel', '07 3390 5500', '9 Lytton Rd, Hemmant QLD 4174']
 ]
+const TRANSPORT_COUNT = COMPANIES.length
+const DRIVERS_PER_COMPANY = 5
+const VEHICLES_PER_COMPANY = 10
+// Vehicles of the first company reserved for the suspicious-activity examples (7 small + 2 large, created by truck()/bigTruck() below).
+const RESERVED_VEHICLES = 9
 const FIRST = ['Jack', 'Liam', 'Noah', 'Ethan', 'Lucas', 'Mason', 'Chloe', 'Ruby', 'Mia', 'Ava', 'Ben', 'Tom', 'Sam', 'Josh', 'Ryan', 'Ella', 'Zoe', 'Luke', 'Matt', 'Dylan', 'Kyle', 'Grace', 'Isla', 'Harry']
 const LAST = ['Smith', 'Jones', 'Brown', 'Taylor', 'Martin', 'Walker', 'Harris', 'Lewis', 'Young', 'King', 'Wright', 'Scott', 'Green', 'Baker', 'Hall', 'Allen']
 const FACILITIES = [
@@ -31,7 +35,7 @@ const FACILITIES = [
   ['Wacol Grease Processing Facility', '120 Industrial Ave, Wacol QLD 4076', -27.5952, 152.9315, 'active'],
   ['Yatala Liquid Waste Plant', '8 Darlington Dr, Yatala QLD 4207', -27.7419, 153.2216, 'active'],
   ['Gibson Island Treatment Works', '1 Gibson Island Rd, Murarrie QLD 4172', -27.4440, 153.1310, 'active'],
-  ['Narangba Recycling Depot', '22 Potassium St, Narangba QLD 4504', -27.1990, 152.9620, 'inactive']
+  ['Narangba Recycling Depot', '22 Potassium St, Narangba QLD 4504', -27.1990, 152.9620, 'active']
 ]
 
 export function buildSeed() {
@@ -71,16 +75,17 @@ export function buildSeed() {
   }
 
   // Deterministic company roles and location relationships.
-  const propertyGroups = ['Bayside', 'Riverbank', 'Moreton', 'Southside', 'Cedar', 'Harbour', 'Acacia', 'Greenfield', 'Northgate', 'Sunshine']
+  const propertyGroups = ['Bayside', 'Riverbank', 'Moreton', 'Southside', 'Cedar']
     .map((n) => ({ id: id('CO'), name: `${n} Property Group Pty Ltd`, status: 'active', types: '["owner"]' }))
   companies.push(...propertyGroups)
   const others = ['Riverland State School', 'Brookfield Shire Council', "St Augustine's College", 'Meadowbrook Community Trust', 'Kingsford City Council']
     .map((n) => ({ id: id('CO'), name: n, status: 'active', types: '["owner"]' }))
   companies.push(...others)
   companies.push({ id: id('CO'), name: 'Urban Utilities', status: 'active', types: '["authority"]' })
+  // Four locations in five have an occupier company (80 of the 100 seed locations).
   locations.forEach((l, i) => {
     l.ownerId = i % 3 === 0 ? propertyGroups[i % propertyGroups.length].id : null
-    if (i % 7 === 0) { l.occupierId = null; return }
+    if (i % 5 === 4) { l.occupierId = null; return }
     const occ = { id: id('CO'), name: `${l.name} Pty Ltd`, status: 'active', types: '["occupier"]' }
     companies.push(occ)
     l.occupierId = occ.id
@@ -93,17 +98,19 @@ export function buildSeed() {
   }
 
   const drivers = [], vehicles = [], facilities = []
-  companies.slice(0, 6).forEach((c, ci) => {
-    for (let i = 0; i < 4; i++) {
+  companies.slice(0, TRANSPORT_COUNT).forEach((c, ci) => {
+    for (let i = 0; i < DRIVERS_PER_COMPANY; i++) {
       const first = pick(FIRST), last = pick(LAST)
-      const status = i === 3 && ci % 2 === 0 ? 'pending' : i === 3 && ci === 5 ? 'inactive' : 'active'
+      const status = i === DRIVERS_PER_COMPANY - 1 && ci % 2 === 0 ? 'pending' : i === DRIVERS_PER_COMPANY - 1 && ci === TRANSPORT_COUNT - 1 ? 'inactive' : 'active'
       drivers.push({
         id: id('DR'), companyId: c.id, name: `${first} ${last}`, account: `${first[0]}${last}`.toLowerCase() + (ci + 1),
         phone: `04${Math.floor(between(10, 99))} ${Math.floor(between(100, 999))} ${Math.floor(between(100, 999))}`,
         status, createdAt: iso(now - between(1, 400) * DAY)
       })
     }
-    for (const [type, tank] of [['small', 4000], ['small', 5000], ['large', ci % 2 ? 15000 : 20000]]) {
+    const fleet = [['small', 4000], ['small', 5000], ['small', 4000], ['small', 6000], ['small', 5000], ['small', 4000], ['small', 8000],
+      ['large', ci % 2 ? 15000 : 20000], ['large', 15000], ['large', 20000]].slice(0, VEHICLES_PER_COMPANY - (ci === 0 ? RESERVED_VEHICLES : 0))
+    for (const [type, tank] of fleet) {
       vehicles.push({
         id: id('VE'), companyId: c.id, plate: `${Math.floor(between(100, 999))} ${code(3)}`, type, tank,
         qr: 'VH' + code(10), status: 'active'
@@ -126,7 +133,7 @@ export function buildSeed() {
   }
   const today0 = new Date(now); today0.setHours(0, 0, 0, 0)
 
-  for (const c of companies.slice(0, 6)) {
+  for (const c of companies.slice(0, TRANSPORT_COUNT)) {
     const cDrivers = drivers.filter((d) => d.companyId === c.id && d.status === 'active')
     const cVehicles = vehicles.filter((v) => v.companyId === c.id && v.status === 'active')
     const cDevices = devices.filter((d) => d.companyId === c.id && d.status === 'Active')
@@ -139,7 +146,8 @@ export function buildSeed() {
       const base = today0.getTime() - dd * DAY
       if (new Date(base).getDay() === 0) continue
       const pickedToday = new Set()
-      const working = cVehicles.filter(() => rnd() > 0.3)
+      // About a quarter of the fleet goes out on a given day, so each device is pumped every few days.
+      const working = cVehicles.filter(() => rnd() < 0.25)
       const large = working.find((v) => v.type === 'large')
       const largeArrivals = []
       for (const v of [...working.filter((x) => x.type === 'small'), ...(large ? [large] : [])]) {

@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <h2>{{ isTransportView ? 'Transport companies' : 'Companies' }}</h2>
+    <h2>{{ TITLES[typeFilter] || 'Companies' }}</h2>
     <div class="card">
       <div class="toolbar">
         <el-input v-model="q" placeholder="Search company / ABN / contact" clearable :prefix-icon="'Search'" style="width: 290px" />
@@ -47,6 +47,7 @@ import { companyFields, DEFAULTS, upsert } from '../store/forms'
 const router = useRouter(), route = useRoute()
 const typeFilter = computed({ get: () => route.query.type || 'transport', set: (type) => router.replace({ path: '/companies', query: { type } }) })
 const isTransportView = computed(() => typeFilter.value === 'transport')
+const TITLES = { transport: 'Transport companies', occupier: 'Occupiers', owner: 'Owners', facility_operator: 'Facility operators', authority: 'Authorities', all: 'Companies' }
 const q = ref(''), status = ref('')
 const counts = computed(() => {
   const m = {}

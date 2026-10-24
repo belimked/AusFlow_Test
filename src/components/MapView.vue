@@ -5,13 +5,14 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import L from 'leaflet'
 
-// markers: [{ lat, lng, label, color }], lines: [[[lat,lng],[lat,lng]]], circle: { lat, lng, radius }
+// markers: [{ lat, lng, label, color }], lines: [[[lat,lng],...] | { path, label, color, road }], circle: { lat, lng, radius }
 const props = defineProps({
   markers: { type: Array, default: () => [] },
   lines: { type: Array, default: () => [] },
   circle: Object,
   height: { type: Number, default: 320 }
 })
+const PALETTE = ['#e11d48', '#f97316', '#0891b2', '#c026d3', '#ca8a04', '#0d9488', '#4f46e5', '#65a30d', '#db2777', '#0284c7', '#7c3aed', '#b45309', '#059669', '#be123c']
 const el = ref()
 let map, layer, ro, timer
 
@@ -22,7 +23,14 @@ function draw() {
   if (props.circle?.lat != null) {
     L.circle([props.circle.lat, props.circle.lng], { radius: props.circle.radius, color: '#409eff', weight: 1, fillOpacity: 0.08 }).addTo(layer)
   }
-  for (const line of props.lines) L.polyline(line, { color: '#909399', dashArray: '4 4', weight: 2 }).addTo(layer)
+  // Two-point lines are straight links (dashed); longer ones are road routes (solid). Each leg gets its own colour.
+  props.lines.forEach((line, i) => {
+    const path = Array.isArray(line) ? line : line.path
+    const color = line.color || PALETTE[i % PALETTE.length]
+    const road = line.road ?? path.length > 2
+    const pl = L.polyline(path, road ? { color, weight: 4, opacity: 0.85 } : { color, dashArray: '6 5', weight: 3, opacity: 0.9 }).addTo(layer)
+    if (line.label) pl.bindTooltip(line.label, { sticky: true })
+  })
   for (const m of props.markers) {
     if (m.lat == null) continue
     pts.push([m.lat, m.lng])
