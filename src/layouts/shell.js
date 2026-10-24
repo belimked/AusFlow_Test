@@ -55,14 +55,20 @@ export function useShell() {
   const active = computed(() => {
     const p = route.path
     // "Occupiers" and "Transport companies" share the /companies route; only the query tells them apart.
-    if (p === '/companies' && route.query.type && route.query.type !== 'transport') return `/companies?type=${route.query.type}`
+    if (p.startsWith('/companies') && route.query.type && route.query.type !== 'transport') return `/companies?type=${route.query.type}`
     const map = { '/locations/': '/locations', '/devices/': '/devices', '/companies/': '/companies', '/drivers/': '/drivers', '/vehicles/': '/vehicles', '/pickups/': '/pickups', '/facilities/': '/facilities' }
     for (const [k, v] of Object.entries(map)) if (p.startsWith(k)) return v
     return p
   })
   const activeGroup = computed(() => nav.value.find((g) => g.items.some((i) => i.path === active.value)))
   const activeItem = computed(() => activeGroup.value?.items.find((i) => i.path === active.value))
-  const title = computed(() => route.meta.title)
+  // Company pages serve several company types; the query says which one, the route meta only knows "transport".
+  const COMPANY_TITLES = { occupier: ['Occupiers', 'Occupier details'], owner: ['Owners', 'Owner details'], facility_operator: ['Facility operators', 'Facility operator details'], authority: ['Authorities', 'Authority details'], all: ['Companies', 'Company details'] }
+  const title = computed(() => {
+    const t = COMPANY_TITLES[route.query.type]
+    if (t && route.path.startsWith('/companies')) return route.params.id ? t[1] : t[0]
+    return route.meta.title
+  })
 
   async function reset() {
     try { await ElMessageBox.confirm('This will clear all changes, imports and new records and restore the original demo data.', 'Reset demo data', { type: 'warning' }) } catch { return }

@@ -19,7 +19,7 @@
       <el-table-column label="Next service" prop="nextService" sortable="custom" width="120"><template #default="{ row }"><span :class="{ red: isOverdue(row) }">{{ fmtDate(nextService(row)) }}</span></template></el-table-column>
       <el-table-column label="Overdue" prop="overdueDays" sortable="custom" width="105"><template #default="{ row }"><span class="red">{{ overdueText(row) }}</span></template></el-table-column>
       <el-table-column v-if="!hideCompany" label="Responsible transport company" prop="companyId" sortable="custom" min-width="160" show-overflow-tooltip><template #default="{ row }">{{ row.companyId ? nameOf('companies', row.companyId) : '—' }}</template></el-table-column>
-      <el-table-column label="Owner" prop="ownerId" sortable="custom" min-width="160" show-overflow-tooltip><template #default="{ row }"><span v-if="row.ownerId" class="link" @click="router.push('/companies/' + row.ownerId)">{{ nameOf('companies', row.ownerId) }}</span><span v-else>—</span></template></el-table-column>
+      <el-table-column label="Owner" prop="ownerId" sortable="custom" min-width="160" show-overflow-tooltip><template #default="{ row }"><span v-if="row.ownerId" class="link" @click="router.push({ path: '/companies/' + row.ownerId, query: { type: 'occupier' } })">{{ nameOf('companies', row.ownerId) }}</span><span v-else>—</span></template></el-table-column>
       <el-table-column label="Status" prop="status" sortable="custom" width="100"><template #default="{ row }"><el-tag :type="STATUS_TAG[row.status]" size="small">{{ DEVICE_STATUS[row.status] || row.status }}</el-tag></template></el-table-column>
       <slot />
     </el-table>

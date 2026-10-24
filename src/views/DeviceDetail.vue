@@ -55,12 +55,12 @@
                 <div class="sp-row">
                   <label>Owner</label>
                   <InlineField :device="dev" field="ownerId">
-                    <span v-if="dev.ownerId" class="link" @click="router.push('/companies/' + dev.ownerId)">{{ nameOf('companies', dev.ownerId) }}</span><span v-else class="muted">Not set</span>
+                    <span v-if="dev.ownerId" class="link" @click="router.push({ path: '/companies/' + dev.ownerId, query: { type: 'occupier' } })">{{ nameOf('companies', dev.ownerId) }}</span><span v-else class="muted">Not set</span>
                   </InlineField>
                 </div>
                 <div class="sp-row">
                   <label>Occupier</label>
-                  <div><span v-if="loc?.occupierId" class="link" @click="router.push('/companies/' + loc.occupierId)">{{ nameOf('companies', loc.occupierId) }}</span><span v-else class="muted">Not set</span></div>
+                  <div><span v-if="loc?.occupierId" class="link" @click="router.push({ path: '/companies/' + loc.occupierId, query: { type: 'occupier' } })">{{ nameOf('companies', loc.occupierId) }}</span><span v-else class="muted">Not set</span></div>
                 </div>
                 <div class="sp-pair">
                   <div class="sp-row"><label>Approval category</label><InlineField :device="dev" field="approvalCategory">{{ dev.approvalCategory || '—' }}</InlineField></div>
