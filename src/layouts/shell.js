@@ -5,16 +5,16 @@ import { resetDemo } from '../store/db'
 import { can, logout as signOut } from '../store/api'
 import { unreadCount } from '../store/alerts'
 
+// Stitch (D) is the one layout now; ?layout=<key> still previews the other shells for comparison.
 export const LAYOUTS = [
+  { key: 'hydro', label: 'D · Stitch' },
   { key: 'classic', label: 'Current' },
   { key: 'harbour', label: 'A · Top nav' },
   { key: 'rail', label: 'B · Icon rail' },
-  { key: 'calm', label: 'C · Light sidebar' },
-  { key: 'hydro', label: 'D · Stitch' }
+  { key: 'calm', label: 'C · Light sidebar' }
 ]
 const pick = (k) => (LAYOUTS.some((l) => l.key === k) ? k : null)
-export const layoutKey = ref(pick(new URLSearchParams(location.search).get('layout')) || pick(localStorage.getItem('layout')) || 'classic')
-export function setLayout(k) { layoutKey.value = k; localStorage.setItem('layout', k) }
+export const layoutKey = ref(pick(new URLSearchParams(location.search).get('layout')) || 'hydro')
 
 export const NAV = [
   { key: 'monitor', label: 'Monitor', icon: 'Odometer', items: [

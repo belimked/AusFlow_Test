@@ -1,12 +1,10 @@
 <template>
   <component :is="LAYOUT_COMPONENTS[layoutKey]" />
   <AlertDialog />
-  <LayoutSwitcher />
 </template>
 <script setup>
 import { watchEffect } from 'vue'
 import AlertDialog from '../components/AlertDialog.vue'
-import LayoutSwitcher from '../layouts/LayoutSwitcher.vue'
 import LayoutClassic from '../layouts/LayoutClassic.vue'
 import LayoutHarbour from '../layouts/LayoutHarbour.vue'
 import LayoutRail from '../layouts/LayoutRail.vue'
