@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-table @sort-change="onSort" :data="paged" stripe size="small">
+    <el-table @sort-change="onSort" :data="paged" stripe :size="size">
       <el-table-column label="Device Ref" prop="ref" sortable="custom" width="118" fixed>
         <template #default="{ row }"><span class="link" @click="router.push('/devices/' + row.id)">{{ row.ref }}</span></template>
       </el-table-column>
@@ -34,7 +34,7 @@ import TagIds from './TagIds.vue'
 import { usePaged } from '../composables/paged'
 import { state, tagsOf, overdueDays, nameOf, nextService, isOverdue, overdueText, fmtDate, fmtL, DEVICE_STATUS } from '../store/db'
 
-const props = defineProps({ rows: Array, hideLocation: Boolean, hideCompany: Boolean })
+const props = defineProps({ rows: Array, hideLocation: Boolean, hideCompany: Boolean, size: { type: String, default: 'small' } })
 const STATUS_TAG = { Active: 'success', Inactive: 'info', Removed: 'danger' }
 const router = useRouter()
 const suburbMap = computed(() => new Map(state.locations.map((l) => [l.id, l.suburb || ''])))

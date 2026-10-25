@@ -55,10 +55,10 @@
           <DeviceTable :rows="devices" hide-company />
         </el-tab-pane>
         <el-tab-pane v-if="!asTransport" :label="`Devices owned (${ownedDevices.length})`" name="owned-devices">
-          <DeviceTable :rows="ownedDevices" />
+          <DeviceTable :rows="ownedDevices" size="default" />
         </el-tab-pane>
         <el-tab-pane v-if="!asTransport" :label="`Locations (${ownedLocations.length})`" name="locations">
-          <el-table :data="ownedLocations" size="small" stripe>
+          <el-table :data="ownedLocations" stripe>
             <el-table-column label="Location"><template #default="{ row }"><span class="link" @click="router.push('/locations/' + row.id)">{{ row.name }}</span></template></el-table-column>
             <el-table-column label="Address" show-overflow-tooltip><template #default="{ row }">{{ [row.address1, row.suburb, row.state, row.postcode].filter(Boolean).join(', ') }}</template></el-table-column>
             <el-table-column label="Relationship" width="200"><template #default="{ row }">{{ relation(row) }}</template></el-table-column>
