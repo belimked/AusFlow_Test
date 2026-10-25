@@ -88,9 +88,17 @@ async function fetchState() {
   return res.json()
 }
 
+// Lists come back in database order; show them A–Z by name / plate (the iOS console orders its lists the same way).
+const byName = (key) => (a, b) => String(a[key] || '').localeCompare(String(b[key] || ''), undefined, { numeric: true, sensitivity: 'base' })
+export function sortLists(data) {
+  for (const k of ['companies', 'drivers', 'locations', 'facilities']) if (Array.isArray(data[k])) data[k].sort(byName('name'))
+  if (Array.isArray(data.vehicles)) data.vehicles.sort(byName('plate'))
+  return data
+}
+
 function applyServer(res) {
   const { alertReads, ...rest } = res.data
-  Object.assign(state, emptyState(), rest, { seq: res.seq, alertReads: Object.fromEntries(alertReads.map((r) => [r.id, true])) })
+  Object.assign(state, emptyState(), sortLists(rest), { seq: res.seq, alertReads: Object.fromEntries(alertReads.map((r) => [r.id, true])) })
   markSynced()
 }
 
