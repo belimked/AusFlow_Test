@@ -1,6 +1,6 @@
 import { computed, reactive } from 'vue'
 import { wasteCodeOf } from './wasteCodes'
-import { state, idx, nameOf, plateOf, isOverdue, overdueDays, overdueText, nextService, vehicleLoads, vehicleCycles, traceBackward, fmtL, fmtM, save, nextId, CURRENT_USER } from './db'
+import { state, servicedBy, isTransport, idx, nameOf, plateOf, isOverdue, overdueDays, overdueText, nextService, vehicleLoads, vehicleCycles, traceBackward, fmtL, fmtM, save, nextId, CURRENT_USER } from './db'
 
 export const SUSPICIOUS_RATIO = 1.2
 export const UNLOAD_WARN_HOURS = 24
@@ -79,14 +79,15 @@ export const alerts = computed(() => {
   const overdueByCompany = new Map()
   for (const d of state.devices) {
     if (!isOverdue(d)) continue
-    if (d.companyId && idx.companies.value.get(d.companyId)?.types?.includes('transport')) overdueByCompany.set(d.companyId, [...(overdueByCompany.get(d.companyId) || []), d])
+    const companyId = servicedBy(d)
+    if (companyId && isTransport(idx.companies.value.get(companyId))) overdueByCompany.set(companyId, [...(overdueByCompany.get(companyId) || []), d])
     const days = overdueDays(d)
     push('od:' + d.id + ':' + (d.lastService || ''), 'overdue', {
       severity: days >= 28 ? 'critical' : 'warning',
       title: `${d.ref} overdue for pump-out`,
-      detail: `${loc(d.locationId)} · ${overdueText(d)} · ${d.companyId ? nameOf('companies', d.companyId) : 'No transport company assigned'}`,
+      detail: `${loc(d.locationId)} · ${overdueText(d)} · ${companyId ? nameOf('companies', companyId) : 'Not serviced yet'}`,
       at: nextService(d), to: '/devices/' + d.id,
-      refs: { deviceId: d.id, locationId: d.locationId, companyId: d.companyId },
+      refs: { deviceId: d.id, locationId: d.locationId, companyId },
       points: devicePoint(d)
     })
   }

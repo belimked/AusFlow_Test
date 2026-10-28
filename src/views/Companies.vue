@@ -42,7 +42,7 @@ import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import { usePaged } from '../composables/paged'
 import { exportCsv } from '../store/csv'
-import { state, save, ENTITY_STATUS, COMPANY_TYPES, companyTypes } from '../store/db'
+import { state, servicedBy, save, ENTITY_STATUS, COMPANY_TYPES, companyTypes } from '../store/db'
 import { can } from '../store/api'
 import { companyFields, DEFAULTS, upsert } from '../store/forms'
 
@@ -55,7 +55,10 @@ const counts = computed(() => {
   const m = {}
   for (const key of ['drivers', 'vehicles', 'devices']) {
     m[key] = new Map()
-    for (const x of state[key]) m[key].set(x.companyId, (m[key].get(x.companyId) || 0) + 1)
+    for (const x of state[key]) {
+      const id = key === 'devices' ? servicedBy(x) : x.companyId
+      if (id) m[key].set(id, (m[key].get(id) || 0) + 1)
+    }
   }
   // Occupiers / owners: devices they own and the distinct locations those devices sit at (plus locations naming them).
   m.owned = new Map()

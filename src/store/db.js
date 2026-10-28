@@ -170,6 +170,18 @@ export const idx = {
   drivers: indexOf('drivers'), vehicles: indexOf('vehicles'), facilities: indexOf('facilities'),
   pickups: indexOf('pickups')
 }
+// Most recent completed pickup determines the device's current servicing company.
+export const lastServicedCompany = computed(() => {
+  const latest = new Map()
+  for (const p of state.pickups) {
+    if (p.status !== 'done') continue
+    const prev = latest.get(p.deviceId)
+    if (!prev || (p.endAt || '') > (prev.endAt || '') ||
+      ((p.endAt || '') === (prev.endAt || '') && (p.startAt || '') > (prev.startAt || ''))) latest.set(p.deviceId, p)
+  }
+  return new Map([...latest].map(([id, p]) => [id, p.companyId || null]))
+})
+export const servicedBy = (d) => lastServicedCompany.value.get(d.id) ?? null
 export const companyTypes = (c) => { try { return Array.isArray(c?.types) ? c.types : JSON.parse(c?.types || '["transport"]') } catch { return ['transport'] } }
 export const isTransport = (c) => companyTypes(c).includes('transport')
 export const transports = computed(() => state.companies.filter(isTransport))

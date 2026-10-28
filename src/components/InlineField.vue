@@ -8,9 +8,6 @@
     </template>
     <div v-else class="editor">
       <el-select-v2 v-if="kind === 'location'" v-model="value" :options="locationOptions" filterable style="width: 100%" />
-      <el-select v-else-if="kind === 'company'" v-model="value" clearable filterable placeholder="No transport company" style="width: 100%">
-        <el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" />
-      </el-select>
       <el-select v-else-if="kind === 'owner'" v-model="value" clearable filterable placeholder="No owner" style="width: 100%">
         <el-option v-for="c in owners" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
@@ -35,14 +32,14 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapPicker from './MapPicker.vue'
-import { state, transports, updateDevice, DEVICE_STATUS, DEVICE_FIELDS, isTransport } from '../store/db'
+import { state, updateDevice, DEVICE_STATUS, DEVICE_FIELDS, isTransport } from '../store/db'
 import { can } from '../store/api'
 
 // field: a DEVICE_FIELDS key, or 'coords' for the lat/lng pair
 const props = defineProps({ device: { type: Object, required: true }, field: { type: String, required: true } })
 
 const KINDS = {
-  locationId: 'location', companyId: 'company', ownerId: 'owner', status: 'status', type: 'choice', waste: 'choice', risk: 'choice',
+  locationId: 'location', ownerId: 'owner', status: 'status', type: 'choice', waste: 'choice', risk: 'choice',
   capacity: 'number', freqWeeks: 'number', lastService: 'datetime', locationDesc: 'textarea', comments: 'textarea', coords: 'coords'
 }
 const kind = computed(() => KINDS[props.field] || 'text')
@@ -67,7 +64,7 @@ function commit() {
   if (props.field === 'coords') patch = { lat: value.value.lat ?? null, lng: value.value.lng ?? null }
   else if (kind.value === 'number') patch = { [props.field]: value.value ?? 0 }
   else if (kind.value === 'datetime') patch = { [props.field]: value.value ? new Date(value.value).toISOString() : null }
-  else if (kind.value === 'company' || kind.value === 'owner') patch = { [props.field]: value.value || null }
+  else if (kind.value === 'owner') patch = { [props.field]: value.value || null }
   else patch = { [props.field]: typeof value.value === 'string' ? value.value.trim() : value.value }
   if (props.field === 'locationId' && !patch.locationId) return ElMessage.warning('Please select a location')
   const n = updateDevice(props.device.id, patch, 'Web')
