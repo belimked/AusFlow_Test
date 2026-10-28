@@ -151,11 +151,14 @@ export function createApp(setup) {
     const db = c.var.db
     const [device] = await db.select().from(s.devices).where(eq(s.devices.ref, c.req.param('ref')))
     if (!device) throw new HTTPException(404, { message: 'Device not found' })
-    const [[location], [transporter], pickups] = await Promise.all([
+    const [[location], [lastDone], pickups] = await Promise.all([
       device.locationId ? db.select().from(s.locations).where(eq(s.locations.id, device.locationId)) : [],
-      device.companyId ? db.select({ id: s.companies.id, name: s.companies.name, phone: s.companies.phone }).from(s.companies).where(eq(s.companies.id, device.companyId)) : [],
+      db.select({ companyId: s.pickups.companyId }).from(s.pickups)
+        .where(and(eq(s.pickups.deviceId, device.id), eq(s.pickups.status, 'done')))
+        .orderBy(desc(s.pickups.endAt), desc(s.pickups.startAt)).limit(1),
       db.select({ id: s.pickups.id, startAt: s.pickups.startAt, volume: s.pickups.volume, status: s.pickups.status }).from(s.pickups).where(eq(s.pickups.deviceId, device.id)).orderBy(desc(s.pickups.startAt)).limit(5)
     ])
+    const [transporter] = lastDone?.companyId ? await db.select({ id: s.companies.id, name: s.companies.name, phone: s.companies.phone }).from(s.companies).where(eq(s.companies.id, lastDone.companyId)) : []
     const nextDue = device.lastService && device.freqWeeks ? new Date(Date.parse(device.lastService) + device.freqWeeks * 7 * 864e5).toISOString() : null
     return c.json({
       device: { id: device.id, ref: device.ref, status: device.status, type: device.type, capacity: device.capacity, freqWeeks: device.freqWeeks, lastService: device.lastService },

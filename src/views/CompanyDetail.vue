@@ -85,7 +85,7 @@ import DeviceTable from '../components/DeviceTable.vue'
 import PickupTable from '../components/PickupTable.vue'
 import TransferTable from '../components/TransferTable.vue'
 import UnloadTable from '../components/UnloadTable.vue'
-import { state, idx, isTransport, companyTypes, COMPANY_TYPES, isOverdue, vehicleLoads, fmtL, nameOf, plateOf, ENTITY_STATUS, DRIVER_STATUS, VEHICLE_TYPE } from '../store/db'
+import { state, servicedBy, idx, isTransport, companyTypes, COMPANY_TYPES, isOverdue, vehicleLoads, fmtL, nameOf, plateOf, ENTITY_STATUS, DRIVER_STATUS, VEHICLE_TYPE } from '../store/db'
 import { companyFields, driverFields, vehicleFields, DEFAULTS, upsert } from '../store/forms'
 
 const DRIVER_TAG = { pending: 'warning', active: 'success', inactive: 'info' }
@@ -101,7 +101,7 @@ const co = computed(() => idx.companies.value.get(id))
 const owned = computed(() => state.locations.filter((l) => l.ownerId === id))
 const occupied = computed(() => state.locations.filter((l) => l.occupierId === id))
 const of = (key) => computed(() => state[key].filter((x) => x.companyId === id))
-const drivers = of('drivers'), vehicles = of('vehicles'), devices = of('devices'), pickups = of('pickups'), transfers = of('transfers'), unloads = of('unloads')
+const drivers = of('drivers'), vehicles = of('vehicles'), devices = computed(() => state.devices.filter((d) => servicedBy(d) === id)), pickups = of('pickups'), transfers = of('transfers'), unloads = of('unloads')
 
 const STATUS_LABEL = { ongoing: 'In progress', done: 'Done' }
 const opFilter = reactive({ q: '', status: '', dates: null })

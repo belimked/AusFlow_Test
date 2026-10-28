@@ -5,7 +5,7 @@
       <el-input v-model="f.q" placeholder="Search tag / device / location" clearable style="width: 250px" />
       <el-select v-model="f.status" placeholder="Status" clearable style="width: 150px"><el-option label="Allocated" value="Allocated" /><el-option label="Duplicate" value="Duplicate" /></el-select>
       <el-select v-model="f.suburb" placeholder="Suburb" filterable clearable style="width: 160px"><el-option v-for="s in suburbs" :key="s" :value="s" /></el-select>
-      <el-select v-model="f.transport" placeholder="Transport company" filterable clearable style="width: 220px"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+      <el-select v-model="f.transport" placeholder="Last serviced by" filterable clearable style="width: 220px"><el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" /></el-select>
       <el-date-picker v-model="f.range" type="daterange" start-placeholder="Allocated from" end-placeholder="Allocated to" style="width: 270px" />
     </div>
     <el-table :data="paged" stripe size="small" @sort-change="onSort">
@@ -15,7 +15,7 @@
       <el-table-column prop="deviceStatus" label="Device status" sortable="custom" width="135" />
       <el-table-column prop="location" label="Location" sortable="custom" min-width="200"><template #default="{ row }"><span class="link" @click="router.push('/locations/' + row.locationId)">{{ row.location }}</span></template></el-table-column>
       <el-table-column prop="suburb" label="Suburb" sortable="custom" width="140" />
-      <el-table-column prop="transport" label="Responsible transport company" sortable="custom" min-width="210" />
+      <el-table-column prop="transport" label="Last serviced by" sortable="custom" min-width="210" />
       <el-table-column prop="allocatedBy" label="Allocated by" sortable="custom" min-width="190" />
       <el-table-column prop="allocatedAt" label="Allocated at" sortable="custom" width="170"><template #default="{ row }">{{ fmtTime(row.allocatedAt) }}</template></el-table-column>
     </el-table>
@@ -27,7 +27,7 @@ import { computed, reactive, toRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Pager from '../components/Pager.vue'
 import { usePaged } from '../composables/paged'
-import { state, transports, tagsOf, nameOf, fmtTime } from '../store/db'
+import { state, servicedBy, transports, tagsOf, nameOf, fmtTime } from '../store/db'
 import { exportCsv } from '../store/csv'
 const route = useRoute(), router = useRouter()
 const keys = ['q', 'status', 'suburb', 'transport', 'from', 'to']
@@ -74,7 +74,7 @@ const rows = computed(() => {
     const log = logs.value.get(d.id + '\0' + code)
     return { code, status: count.get(code) > 1 ? 'Duplicate' : 'Allocated', device: d.ref, deviceId: d.id,
       deviceStatus: d.status, location: loc?.name || '—', locationId: d.locationId, suburb: loc?.suburb || '',
-      transportId: d.companyId, transport: d.companyId ? nameOf('companies', d.companyId) : '—',
+      transportId: servicedBy(d), transport: servicedBy(d) ? nameOf('companies', servicedBy(d)) : '—',
       allocatedBy: log?.user || 'CSV import', allocatedAt: log?.at || '' }
   }))
 })
@@ -90,7 +90,7 @@ const filtered = computed(() => {
 const { page, pageSize, rows: paged, sorted, onSort, total } = usePaged(toRef(filtered), 20)
 function download() {
   exportCsv('device-tags', sorted.value.map((r) => ({ 'Tag code': r.code, Status: r.status, Device: r.device,
-    'Device status': r.deviceStatus, Location: r.location, Suburb: r.suburb, 'Responsible transport company': r.transport,
+    'Device status': r.deviceStatus, Location: r.location, Suburb: r.suburb, 'Last serviced by': r.transport,
     'Allocated by': r.allocatedBy, 'Allocated at': fmtTime(r.allocatedAt) })))
 }
 </script>

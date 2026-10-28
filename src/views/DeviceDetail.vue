@@ -47,10 +47,8 @@
               <div class="side-panel">
                 <div class="sp-head">Responsibility &amp; compliance</div>
                 <div class="sp-row">
-                  <label>Responsible transport company</label>
-                  <InlineField :device="dev" field="companyId">
-                    <span v-if="dev.companyId" class="link" @click="router.push('/companies/' + dev.companyId)">{{ nameOf('companies', dev.companyId) }}</span><span v-else class="muted">Not assigned</span>
-                  </InlineField>
+                  <label>Last serviced by</label>
+                  <span v-if="servicedBy(dev)" class="link" @click="router.push('/companies/' + servicedBy(dev))">{{ nameOf('companies', servicedBy(dev)) }}</span><span v-else class="muted">—</span>
                 </div>
                 <div class="sp-row">
                   <label>Owner</label>
@@ -115,7 +113,7 @@
               </template></el-table-column>
               <el-table-column label="Type" min-width="140" show-overflow-tooltip><template #default="{ row }">{{ row.d.type }}</template></el-table-column>
               <el-table-column label="Status" width="90"><template #default="{ row }">{{ DEVICE_STATUS[row.d.status] }}</template></el-table-column>
-              <el-table-column label="Transport company" min-width="170" show-overflow-tooltip><template #default="{ row }">{{ row.d.companyId ? nameOf('companies', row.d.companyId) : '—' }}</template></el-table-column>
+              <el-table-column label="Last serviced by" min-width="170" show-overflow-tooltip><template #default="{ row }">{{ servicedBy(row.d) ? nameOf('companies', servicedBy(row.d)) : '—' }}</template></el-table-column>
             </el-table>
           </template>
         </el-tab-pane>
@@ -172,7 +170,7 @@ import InlineField from '../components/InlineField.vue'
 import TagIds from '../components/TagIds.vue'
 import WasteType from '../components/WasteType.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
-import { tagsOf, state, idx, nameOf, updateDevice, logChange, addEntityNote, nextId, CURRENT_USER, INSPECTION_RESULTS, ISSUE_CATEGORIES, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
+import { tagsOf, servicedBy, state, idx, nameOf, updateDevice, logChange, addEntityNote, nextId, CURRENT_USER, INSPECTION_RESULTS, ISSUE_CATEGORIES, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 import { can } from '../store/api'
 import { TWAIN_URL } from '../brand.js'
 

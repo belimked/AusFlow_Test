@@ -24,7 +24,7 @@
           <div v-if="step === 1 && plan">
             <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px"
               :title="`File: ${fileName}, ${rowCount} rows`"
-              description="Review the results before importing. Updates are recorded in the Change Log (Source = CSV Import). Serviced By maps to the device’s Responsible transport company; Last service is only overwritten when the CSV date is newer." />
+              description="Review the results before importing. Updates are recorded in the Change Log (Source = CSV Import). Serviced By is retained as legacy import data, but the displayed servicing company comes only from the latest completed pump-out. Last service is only overwritten when the CSV date is newer." />
             <el-row :gutter="12" style="margin-bottom: 12px">
               <el-col :span="4" v-for="s in summary" :key="s.label">
                 <div class="sum" :class="s.cls"><div class="muted">{{ s.label }}</div><div class="n">{{ s.value }}</div></div>
@@ -48,10 +48,10 @@
                   <el-table-column prop="device.ref" label="Device Ref" width="100" />
                   <el-table-column label="Changed fields">
                     <template #default="{ row }">
-                      <div v-for="f in row.fields" :key="f">
+                      <div v-for="f in row.fields.filter((f) => f !== 'companyId')" :key="f">
                         <b>{{ DEVICE_FIELDS[f] }}</b>: <span class="muted">{{ show(f, idx.devices.value.get(row.device.ref)[f]) }}</span> → {{ show(f, row.patch[f]) }}
                       </div>
-                      <div v-if="!row.fields.length" class="muted">Location or transport company will be created and linked on import</div>
+                      <div v-if="!row.fields.filter((f) => f !== 'companyId').length" class="muted">No visible device fields changed</div>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -153,7 +153,6 @@ const summary = computed(() => [
 const show = (f, v) => {
   if (v == null || v === '') return '(empty)'
   if (f === 'locationId') return nameOf('locations', v)
-  if (f === 'companyId') return nameOf('companies', v)
   if (f === 'status') return DEVICE_STATUS[v] || v
   if (f === 'lastService') return fmtDate(v)
   return v

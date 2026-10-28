@@ -171,7 +171,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Chart from '../components/Chart.vue'
 import AlertList from '../components/AlertList.vue'
-import { state, transports, nameOf, isOverdue, overdueDays, nextService, fmtTime, fmtL, traceForward } from '../store/db'
+import { state, servicedBy, transports, nameOf, isOverdue, overdueDays, nextService, fmtTime, fmtL, traceForward } from '../store/db'
 import { activeAlerts, ALERT_TYPES, SEVERITY, isRead } from '../store/alerts'
 import { currentUser } from '../store/api'
 import { BRAND } from '../brand'
@@ -375,7 +375,7 @@ const overdueRank = computed(() => {
   const groups = new Map()
   for (const d of state.devices) {
     if (!isOverdue(d)) continue
-    const key = d.companyId || 'none'
+    const key = servicedBy(d) || 'none'
     const g = groups.get(key) || { lt4: 0, lt12: 0, ge12: 0 }
     const w = overdueDays(d) / 7
     if (w < 4) g.lt4++; else if (w < 12) g.lt12++; else g.ge12++

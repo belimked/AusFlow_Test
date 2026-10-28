@@ -9,8 +9,8 @@
         <el-select v-model="f.type" placeholder="Device type" multiple collapse-tags clearable filterable style="width: 180px">
           <el-option v-for="t in types" :key="t" :value="t" />
         </el-select>
-        <el-select v-model="f.company" placeholder="Responsible transport company" clearable filterable style="width: 220px">
-          <el-option label="(Unassigned)" value="none" />
+        <el-select v-model="f.company" placeholder="Last serviced by" clearable filterable style="width: 220px">
+          <el-option label="(Never serviced)" value="none" />
           <el-option v-for="c in transports" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
         <el-select v-model="f.owner" placeholder="Owner" clearable filterable style="width: 200px">
@@ -49,7 +49,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import DeviceTable from '../components/DeviceTable.vue'
 import DeviceDialog from '../components/DeviceDialog.vue'
-import { state, transports, nameOf, tagsOf, isOverdue, overdueDays, nextService, fmtDate, fmtL, overdueText, updateDevice, DEVICE_STATUS, CUSTODIAN } from '../store/db'
+import { state, servicedBy, transports, nameOf, tagsOf, isOverdue, overdueDays, nextService, fmtDate, fmtL, overdueText, updateDevice, DEVICE_STATUS, CUSTODIAN } from '../store/db'
 import { exportCsv } from '../store/csv'
 import { can } from '../store/api'
 
@@ -82,7 +82,7 @@ function download() {
     Location: nameOf('locations', d.locationId), Custodian: CUSTODIAN[custodianOf.value.get(d.locationId)] || '(Unspecified)', Suburb: suburbOf.value.get(d.locationId) || '',
     'Device type': d.type, Capacity: fmtL(d.capacity), Frequency: d.freqWeeks ? `${d.freqWeeks} wk` : '',
     'Last service': fmtDate(d.lastService), 'Next service': fmtDate(nextService(d)), Overdue: overdueText(d),
-    'Responsible transport company': d.companyId ? nameOf('companies', d.companyId) : '', Status: DEVICE_STATUS[d.status],
+    'Last serviced by': servicedBy(d) ? nameOf('companies', servicedBy(d)) : '', Status: DEVICE_STATUS[d.status],
     Owner: d.ownerId ? nameOf('companies', d.ownerId) : '',
     'Waste type': d.waste, 'Approval category': d.approvalCategory, Lat: d.lat ?? '', Lng: d.lng ?? ''
   })))
@@ -95,7 +95,7 @@ const filtered = computed(() => {
     (!f.status || d.status === f.status) && (!f.type.length || f.type.includes(d.type)) &&
     (!f.suburb || suburbOf.value.get(d.locationId) === f.suburb) &&
     (!f.qr || (f.qr === 'has' ? tagsOf(d).length > 0 : tagsOf(d).length === 0)) &&
-    (!f.company || (f.company === 'none' ? !d.companyId : d.companyId === f.company)) &&
+    (!f.company || (f.company === 'none' ? !servicedBy(d) : servicedBy(d) === f.company)) &&
     (!f.owner || (f.owner === 'none' ? !d.ownerId : d.ownerId === f.owner)) &&
     (!f.freq || (f.freq === 'has' ? Number(d.freqWeeks) > 0 : !Number(d.freqWeeks))) &&
     (!f.custodian || (f.custodian === 'none' ? !custodianOf.value.get(d.locationId) : custodianOf.value.get(d.locationId) === f.custodian)) &&
