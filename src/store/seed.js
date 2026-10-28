@@ -287,6 +287,30 @@ export function buildSeed() {
     xfer(feederB, bigB, 2500, 7, b)
   }
 
+  // A single isolated recent working day: a pump-out followed one minute later by
+  // an unload over 10 km away. Dedicated truck keeps the load at zero afterwards.
+  const fastDev = devs.find((d) => distanceM(d.lat, d.lng, facility.lat, facility.lng) >= 10000)
+  if (fastDev) {
+    const freeDay = Array.from({ length: 12 }, (_, i) => today0.getTime() - (i + 1) * DAY)
+      .flatMap((day) => drivers.filter((d) => d.companyId === co.id && d.status === 'active').map((d) => ({ day, driver: d })))
+      .find(({ day, driver: d }) => ![
+        ...pickups.filter((p) => p.driverId === d.id).map((p) => p.startAt),
+        ...transfers.filter((t) => t.driverId === d.id).map((t) => t.at),
+        ...unloads.filter((u) => u.driverId === d.id).map((u) => u.at)
+      ].some((at) => at && new Date(at).toDateString() === new Date(day).toDateString()))
+    if (freeDay) {
+      const fastDay = freeDay.day, fastDriver = freeDay.driver
+      const v = truck(4000), end = fastDay + 10 * HOUR
+      const volume = Math.min(800, fastDev.capacity)
+      pickups.push({ id: '', deviceId: fastDev.id, locationId: fastDev.locationId, companyId: co.id,
+        driverId: fastDriver.id, vehicleId: v.id, volume, waste: normName(fastDev.waste) || 'Grease Trap Waste',
+        startAt: iso(end - 30 * MIN), endAt: iso(end), startLat: fastDev.lat, startLng: fastDev.lng,
+        endLat: fastDev.lat, endLng: fastDev.lng, distance: 0, photos: 0, flags: [], note: '', status: 'done' })
+      unloads.push({ id: '', companyId: co.id, driverId: fastDriver.id, vehicleId: v.id,
+        facilityId: facility.id, volume, at: iso(end + MIN), lat: facility.lat, lng: facility.lng })
+    }
+  }
+
   pickups.sort((a, b) => a.startAt.localeCompare(b.startAt)).forEach((p) => (p.id = id('PK')))
   transfers.sort((a, b) => a.at.localeCompare(b.at)).forEach((x) => (x.id = id('TR')))
   unloads.sort((a, b) => a.at.localeCompare(b.at)).forEach((x) => (x.id = id('UL')))

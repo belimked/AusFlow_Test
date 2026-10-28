@@ -1,6 +1,7 @@
 import { computed, reactive } from 'vue'
 import { wasteCodeOf } from './wasteCodes'
-import { state, servicedBy, isTransport, idx, nameOf, plateOf, isOverdue, overdueDays, overdueText, nextService, vehicleLoads, vehicleCycles, traceBackward, fmtL, fmtM, save, nextId, CURRENT_USER } from './db'
+import { state, servicedBy, isTransport, idx, nameOf, plateOf, isOverdue, overdueDays, overdueText, nextService, vehicleLoads, vehicleCycles, traceBackward, fmtL, fmtM, save, nextId, CURRENT_USER, distanceM } from './db'
+import { driverSteps, localDay, fastLeg } from './legs'
 
 export const SUSPICIOUS_RATIO = 1.2
 export const UNLOAD_WARN_HOURS = 24
@@ -20,7 +21,7 @@ export const ALERT_TYPES = {
   pendingDriver: 'Driver pending approval',
   vehicleOverload: 'Vehicle overload', unloadOverTank: 'Unload over tank capacity',
   devicePumpedOver: 'Device pumped over daily capacity', unloadDelayed: 'Delayed unload', wasteMismatch: 'Waste type mismatch',
-  transferOverCapacity: 'Transfer exceeds receiving capacity'
+  transferOverCapacity: 'Transfer exceeds receiving capacity', fastLeg: 'Impossibly fast leg'
 }
 export const ALERT_CATEGORIES = { device: 'Device', vehicle: 'Transport & vehicle', driver: 'Driver', suspicious: 'Suspicious activity' }
 const TYPE_CATEGORY = {
@@ -28,7 +29,7 @@ const TYPE_CATEGORY = {
   transferOverCapacity: 'vehicle',
   longJob: 'driver', location: 'driver', nolocation: 'driver', pendingDriver: 'driver',
   vehicleOverload: 'suspicious', unloadOverTank: 'suspicious', devicePumpedOver: 'suspicious',
-  unloadDelayed: 'suspicious', wasteMismatch: 'suspicious'
+  unloadDelayed: 'suspicious', wasteMismatch: 'suspicious', fastLeg: 'suspicious'
 }
 export const SEVERITY = { critical: 'Critical', warning: 'Warning', info: 'Info' }
 const BACKLOG_WARN = 3
@@ -245,6 +246,25 @@ export const alerts = computed(() => {
     })
   }
   for (const d of state.drivers) {
+    const steps = driverSteps(state, d.id)
+    for (let i = 0; i < steps.length - 1; i++) {
+      const a = steps[i], b = steps[i + 1]
+      if (localDay(a.start) !== localDay(b.start) || !recent(b.start)) continue
+      const gap = a.end != null ? b.start - a.end : null
+      const straight = distanceM(a.endPos?.lat, a.endPos?.lng, b.startPos?.lat, b.startPos?.lng)
+      const { fast, kmh } = fastLeg(gap, straight)
+      if (!fast) continue
+      const duration = gap < 60e3 ? `${Math.round(gap / 1000)} s` : `${Math.round(gap / 60e3)} min`
+      const vehicleId = b.vehicleId
+      push('fl:' + a.id + ':' + b.id, 'fastLeg', {
+        severity: kmh > 200 ? 'critical' : 'warning',
+        title: `${d.name}: ${fmtM(straight)} in ${duration} (${Math.round(kmh)} km/h)`,
+        detail: `${a.kind.toUpperCase()} ${a.id} → ${b.kind.toUpperCase()} ${b.id} · ${plateOf(vehicleId)}`,
+        at: new Date(b.start).toISOString(), to: '/drivers/' + d.id,
+        refs: { driverId: d.id, vehicleId, ...(a.kind === 'pickup' || b.kind === 'pickup' ? { pickupId: a.kind === 'pickup' ? a.id : b.id } : {}) },
+        points: [{ ...a.endPos, label: 'From' }, { ...b.startPos, label: 'To' }]
+      })
+    }
     if (d.status === 'pending') push('pd:' + d.id, 'pendingDriver', {
       severity: 'info',
       title: `${d.name} is waiting for approval`, detail: nameOf('companies', d.companyId),
