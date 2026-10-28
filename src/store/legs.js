@@ -28,7 +28,7 @@ export function driverSteps(data, driverId) {
   for (const t of data.transfers) {
     if (t.driverId !== driverId || !t.at) continue
     const at = ms(t.at), p = pos(t.lat, t.lng)
-    out.push({ kind: 'transfer', id: t.id, vehicleId: t.toVehicleId, ref: t,
+    out.push({ kind: 'transfer', id: t.id, vehicleId: t.fromVehicleId, ref: t,
       start: at, end: at, startPos: p, endPos: p })
   }
   for (const u of data.unloads) {

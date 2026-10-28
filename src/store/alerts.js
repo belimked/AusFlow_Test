@@ -32,6 +32,7 @@ const TYPE_CATEGORY = {
   unloadDelayed: 'suspicious', wasteMismatch: 'suspicious', fastLeg: 'suspicious'
 }
 export const SEVERITY = { critical: 'Critical', warning: 'Warning', info: 'Info' }
+const STEP_KIND = { pickup: 'Pump-out', transfer: 'Transfer', unload: 'Unload' }
 const BACKLOG_WARN = 3
 const BACKLOG_CRITICAL = 10
 export const ALERT_STATUS = { new: 'New', acknowledged: 'Acknowledged', cleared: 'Cleared', dismissed: 'Dismissed' }
@@ -259,7 +260,7 @@ export const alerts = computed(() => {
       push('fl:' + a.id + ':' + b.id, 'fastLeg', {
         severity: kmh > 200 ? 'critical' : 'warning',
         title: `${d.name}: ${fmtM(straight)} in ${duration} (${Math.round(kmh)} km/h)`,
-        detail: `${a.kind.toUpperCase()} ${a.id} → ${b.kind.toUpperCase()} ${b.id} · ${plateOf(vehicleId)}`,
+        detail: `${STEP_KIND[a.kind]} ${a.id} → ${STEP_KIND[b.kind]} ${b.id} · ${plateOf(vehicleId)}`,
         at: new Date(b.start).toISOString(), to: '/drivers/' + d.id,
         refs: { driverId: d.id, vehicleId, ...(a.kind === 'pickup' || b.kind === 'pickup' ? { pickupId: a.kind === 'pickup' ? a.id : b.id } : {}) },
         points: [{ ...a.endPos, label: 'From' }, { ...b.startPos, label: 'To' }]
