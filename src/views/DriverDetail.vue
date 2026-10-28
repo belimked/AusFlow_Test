@@ -47,9 +47,10 @@
             <template #default="{ row }">
               <div class="flags">
                 <el-tag v-if="row.noGps" size="small" type="warning">{{ row.noGps }} no GPS</el-tag>
+                <el-tooltip v-if="row.fast" placement="top" :content="`${row.fast} leg(s) covered faster than a truck can drive: over ${FAST_MAX_KMH} km/h in a straight line. Click the day to see which.`"><el-tag size="small" type="danger" style="cursor: help">{{ row.fast }} fast</el-tag></el-tooltip>
                 <el-tooltip v-if="row.slow" placement="top" :content="`${row.slow} leg(s) where the time to the next step is far longer than the drive should take. Click the day to see which.`"><el-tag size="small" type="danger" style="cursor: help">{{ row.slow }} slow</el-tag></el-tooltip>
                 <el-tag v-if="row.other" size="small" type="danger">{{ row.other }} mismatch</el-tag>
-                <span v-if="!row.noGps && !row.slow && !row.other" class="muted">—</span>
+                <span v-if="!row.noGps && !row.fast && !row.slow && !row.other" class="muted">—</span>
               </div>
             </template>
           </el-table-column>
@@ -102,8 +103,11 @@
         </el-table-column>
         <el-table-column label="Over expected" width="150">
           <template #default="{ $index }">
-            <template v-if="legIn($index)?.over != null">
-              <span :class="{ red: legIn($index).slow }">+{{ fmtDur(Math.max(0, legIn($index).over)) }}</span>
+            <template v-if="legIn($index)">
+              <span v-if="legIn($index).over != null" :class="{ red: legIn($index).slow }">+{{ fmtDur(Math.max(0, legIn($index).over)) }}</span>
+              <el-tooltip v-if="legIn($index).fast" placement="top" :content="`Step ${$index} → ${$index + 1}: ${fmtM(legIn($index).straight)} in ${fmtDur(legIn($index).gap)}, at least ${Math.round(legIn($index).kmh)} km/h in a straight line.`">
+                <el-tag size="small" type="danger" style="margin-left: 4px; cursor: help">Fast leg</el-tag>
+              </el-tooltip>
               <el-tooltip v-if="legIn($index).slow" placement="top" :content="`Step ${$index} → ${$index + 1}: gap ${fmtDur(legIn($index).gap)}, expected drive ${fmtDur(legIn($index).drive)}, over by ${fmtDur(legIn($index).over)}. Flagged because the extra time is over ${SLOW_MIN_MIN} min and more than the expected drive itself.`">
                 <el-tag size="small" type="danger" style="margin-left: 4px; cursor: help">Slow leg</el-tag>
               </el-tooltip>
@@ -114,8 +118,8 @@
       </el-table>
       <div class="muted" style="font-size: 12px; margin-top: 8px">
         Each row shows the leg from the previous step to this one. Gap = this step start − previous step end. Expected drive = OSRM road time when routes are planned, otherwise straight line × {{ ROAD_FACTOR }} at {{ EST_SPEED_KMH }} km/h.
-        Slow leg = gap exceeds expected drive by more than {{ SLOW_MIN_MIN }} min and by more than the expected drive itself.
-        Day totals: gaps {{ fmtDur(day.totalGap) }} · straight line {{ fmtM(day.totalStraight) }}<template v-if="routed"> · road {{ fmtDur(day.totalDrive) }} / {{ fmtM(day.totalDriveM) }}</template> · slow legs {{ day.slow }} · steps without GPS {{ day.noGps }}
+        Slow leg = gap exceeds expected drive by more than {{ SLOW_MIN_MIN }} min and by more than the expected drive itself. Fast leg = at least {{ FAST_MIN_M }} m straight line with known gap and implied speed over {{ FAST_MAX_KMH }} km/h (using at least 1 second for the gap).
+        Day totals: gaps {{ fmtDur(day.totalGap) }} · straight line {{ fmtM(day.totalStraight) }}<template v-if="routed"> · road {{ fmtDur(day.totalDrive) }} / {{ fmtM(day.totalDriveM) }}</template> · slow legs {{ day.slow }} · fast legs {{ day.fast }} · steps without GPS {{ day.noGps }}
       </div>
     </div>
   </div>
@@ -128,6 +132,7 @@ import MapView from '../components/MapView.vue'
 import Pager from '../components/Pager.vue'
 import { state, idx, nameOf, plateOf, fmtDate, fmtM, distanceM, DRIVER_STATUS } from '../store/db'
 import { routeSteps } from '../store/routing'
+import { driverSteps, localDay, fastLeg, FAST_MIN_M, FAST_MAX_KMH } from '../store/legs'
 
 const TAG = { pending: 'warning', active: 'success', inactive: 'info' }
 const KIND_LABEL = { pickup: 'Pump-out', transfer: 'Transfer', unload: 'Unload' }
@@ -139,9 +144,6 @@ const route = useRoute(), router = useRouter()
 const drv = computed(() => idx.drivers.value.get(route.params.id))
 const initials = computed(() => (drv.value?.name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())
 
-const pos = (lat, lng) => (lat == null || lng == null ? null : { lat, lng })
-const ms = (s) => (s ? new Date(s).getTime() : null)
-const dayOf = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const fmtClock = (t) => (t == null ? '—' : new Date(t).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false }))
 function fmtDur(v) {
   if (v == null || Number.isNaN(v)) return '—'
@@ -153,26 +155,17 @@ function fmtDur(v) {
 const steps = computed(() => {
   const id = drv.value?.id
   if (!id) return []
-  const out = []
-  for (const p of state.pickups) {
-    if (p.driverId !== id || !p.startAt) continue
-    const startPos = pos(p.startLat, p.startLng), endPos = pos(p.endLat, p.endLng) || startPos
-    const raw = p.flags || []
-    const flags = [...(!startPos || raw.includes('nolocation') ? ['nogps'] : []), ...raw.filter((f) => f !== 'nolocation')]
-    out.push({ kind: 'pickup', id: p.id, deviceId: p.deviceId, start: ms(p.startAt), end: ms(p.endAt), startPos, endPos, distance: p.distance, flags,
-      label: `${idx.devices.value.get(p.deviceId)?.aka || ''} · ${nameOf('locations', p.locationId)} · ${p.volume != null ? p.volume.toLocaleString() + ' L' : 'in progress'} · ${plateOf(p.vehicleId)}` })
-  }
-  for (const t of state.transfers) {
-    if (t.driverId !== id || !t.at) continue
-    const at = ms(t.at), p = pos(t.lat, t.lng)
-    out.push({ kind: 'transfer', id: t.id, start: at, end: at, startPos: p, endPos: p, flags: p ? [] : ['nogps'], label: `${(t.volume || 0).toLocaleString()} L from ${plateOf(t.fromVehicleId)} to ${plateOf(t.toVehicleId)}` })
-  }
-  for (const u of state.unloads) {
-    if (u.driverId !== id || !u.at) continue
-    const at = ms(u.at), p = pos(u.lat, u.lng)
-    out.push({ kind: 'unload', id: u.id, start: at, end: at, startPos: p, endPos: p, flags: p ? [] : ['nogps'], label: `${(u.volume || 0).toLocaleString()} L at ${nameOf('facilities', u.facilityId)} · ${plateOf(u.vehicleId)}` })
-  }
-  return out.sort((a, b) => a.start - b.start)
+  return driverSteps(state, id).map((s) => {
+    const p = s.ref
+    if (s.kind === 'pickup') {
+      const raw = p.flags || []
+      const flags = [...(!s.startPos || raw.includes('nolocation') ? ['nogps'] : []), ...raw.filter((f) => f !== 'nolocation')]
+      return { ...s, deviceId: p.deviceId, distance: p.distance, flags,
+        label: `${idx.devices.value.get(p.deviceId)?.aka || ''} · ${nameOf('locations', p.locationId)} · ${p.volume != null ? p.volume.toLocaleString() + ' L' : 'in progress'} · ${plateOf(p.vehicleId)}` }
+    }
+    if (s.kind === 'transfer') return { ...s, flags: s.startPos ? [] : ['nogps'], label: `${(p.volume || 0).toLocaleString()} L from ${plateOf(p.fromVehicleId)} to ${plateOf(p.toVehicleId)}` }
+    return { ...s, flags: s.startPos ? [] : ['nogps'], label: `${(p.volume || 0).toLocaleString()} L at ${nameOf('facilities', p.facilityId)} · ${plateOf(p.vehicleId)}` }
+  })
 })
 
 // Planned road legs, keyed by the first step's id; filled by "Plan routes".
@@ -181,13 +174,13 @@ const routes = reactive({})
 const days = computed(() => {
   const groups = new Map()
   for (const s of steps.value) {
-    const k = dayOf(s.start)
+    const k = localDay(s.start)
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k).push(s)
   }
   return [...groups].map(([key, list]) => {
     const dsteps = list.map((s) => ({ ...s, next: null }))
-    let totalGap = 0, totalStraight = 0, totalDrive = 0, totalDriveM = 0, slow = 0
+    let totalGap = 0, totalStraight = 0, totalDrive = 0, totalDriveM = 0, slow = 0, fast = 0
     for (let i = 0; i < dsteps.length - 1; i++) {
       const a = dsteps[i], b = dsteps[i + 1]
       const gap = a.end != null ? b.start - a.end : null
@@ -196,8 +189,10 @@ const days = computed(() => {
       const drive = r ? r.durationS * 1000 : straight != null ? (straight * ROAD_FACTOR) / (EST_SPEED_KMH / 3.6) * 1000 : null
       const over = gap != null && drive != null ? gap - drive : null
       const isSlow = over != null && over > Math.max(SLOW_MIN_MIN * 60e3, drive)
-      a.next = { gap, straight, route: r, drive, over, slow: isSlow }
+      const speed = fastLeg(gap, straight)
+      a.next = { gap, straight, route: r, drive, over, slow: isSlow, ...speed }
       if (isSlow) slow++
+      if (speed.fast) fast++
       if (gap != null) totalGap += gap
       if (straight != null) totalStraight += straight
       if (r) { totalDrive += r.durationS * 1000; totalDriveM += r.distanceM }
@@ -208,7 +203,7 @@ const days = computed(() => {
       key, label: new Date(first).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), steps: dsteps,
       jobs: dsteps.filter((s) => s.kind === 'pickup' && s.end).length, transfers: dsteps.filter((s) => s.kind === 'transfer').length,
       unloads: dsteps.filter((s) => s.kind === 'unload').length, first, last, span: last != null ? last - first : null,
-      totalGap, totalStraight, totalDrive, totalDriveM, slow,
+      totalGap, totalStraight, totalDrive, totalDriveM, slow, fast,
       noGps: dsteps.filter((s) => s.flags.includes('nogps')).length,
       other: dsteps.filter((s) => s.flags.some((f) => f !== 'nogps')).length
     }
@@ -269,7 +264,7 @@ const stats = computed(() => {
   return {
     jobs: jobs.length, jobsPerDay: days.value.length ? (jobs.length / days.value.length).toFixed(1) : '—',
     avgJob: avg(jobs.map((j) => j.end - j.start)), avgGap: avg(gaps), avgHop: avg(hops) == null ? null : Math.round(avg(hops)),
-    noGps: all.filter((s) => s.flags.includes('nogps')).length, slow: days.value.reduce((n, d) => n + d.slow, 0),
+    noGps: all.filter((s) => s.flags.includes('nogps')).length, slow: days.value.reduce((n, d) => n + d.slow, 0), fast: days.value.reduce((n, d) => n + d.fast, 0),
     flagLocation: flag('location'), flagCapacity: flag('capacity'),
     transfers: all.filter((s) => s.kind === 'transfer').length, unloads: all.filter((s) => s.kind === 'unload').length
   }
@@ -285,6 +280,7 @@ const summaryTiles = computed(() => {
     { label: 'Avg distance between steps', value: fmtM(s.avgHop), hint: 'Straight-line distance' },
     { label: 'Steps without GPS', value: s.noGps, tone: s.noGps ? 'warn' : '' },
     { label: 'Slow legs', value: s.slow, tone: s.slow ? 'bad' : '', hint: 'Gap far above expected drive' },
+    { label: 'Fast legs', value: s.fast, tone: s.fast ? 'bad' : '', hint: 'Faster than 100 km/h straight line' },
     { label: 'Location mismatch / over cap.', value: `${s.flagLocation} / ${s.flagCapacity}`, tone: s.flagLocation + s.flagCapacity ? 'bad' : '' },
     { label: 'Transfers / unloads', value: `${s.transfers} / ${s.unloads}` }
   ]

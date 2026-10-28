@@ -34,7 +34,7 @@
       </div>
       <p class="muted" style="margin: 0 0 8px; font-size: 12px">
         Alerts are generated automatically: devices past their next service date (critical after 4 weeks), jobs open longer than {{ REMIND_HOURS }} h,
-        pump-outs in the last 14 days with location / capacity issues, vehicles ≥ 90% full, transport companies with 3 or more overdue devices, drivers awaiting approval, transfers larger than the receiving truck's remaining capacity, and recent suspicious activity (load, unload, daily volume and waste-type checks).
+        pump-outs in the last 14 days with location / capacity issues, vehicles ≥ 90% full, transport companies with 3 or more overdue devices, drivers awaiting approval, transfers larger than the receiving truck's remaining capacity, and recent suspicious activity (load, unload, daily volume, waste-type and impossibly fast driver-leg checks).
       </p>
       <AlertList :items="rows" />
       <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
