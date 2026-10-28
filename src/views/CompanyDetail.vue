@@ -127,7 +127,7 @@ const ownedLocations = computed(() => {
   return state.locations.filter((l) => ids.has(l.id))
 })
 const relation = (l) => [l.occupierId === id ? 'Occupier' : null, l.ownerId === id ? 'Owner' : null, ownedDevices.value.some((d) => d.locationId === l.id) ? 'Device owner' : null].filter(Boolean).join(' · ')
-const servicedBy = computed(() => [...new Set(ownedDevices.value.map((d) => d.companyId).filter(Boolean))].map((c) => idx.companies.value.get(c)).filter(Boolean))
+const servicedBy = computed(() => [...new Set(ownedDevices.value.map(deviceServicedBy).filter(Boolean))].map((c) => idx.companies.value.get(c)).filter(Boolean))
 const ownedPickups = computed(() => {
   const ids = new Set(ownedDevices.value.map((d) => d.id))
   const from = Date.now() - 14 * 864e5
