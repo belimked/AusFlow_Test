@@ -6,7 +6,7 @@
       <el-tag :type="{ Active: 'success', Inactive: 'info', Removed: 'danger' }[dev.status]">{{ DEVICE_STATUS[dev.status] }}</el-tag>
       <el-tag v-if="isOverdue(dev)" type="danger" effect="dark">{{ overdueText(dev) }}</el-tag>
       <span style="flex: 1" />
-      <el-button tag="a" :href="`${TWAIN_URL}/#/psid/${encodeURIComponent(dev.ref)}`" target="_blank" rel="noopener" :icon="'Link'">View in Salesforce</el-button>
+      <el-button :icon="'Link'" @click="extDialog = true">View in XXX-System</el-button>
       <el-button v-can="'write'" @click="tab = 'notes'; noteDialog = true">Add note</el-button>
       <el-button v-can="'write'" @click="tab = 'inspections'; inspectDialog = true">Inspect</el-button>
       <el-button v-can="'write'" :icon="'Edit'" @click="dlg = true">Edit</el-button>
@@ -144,6 +144,7 @@
       </el-tabs>
     </div>
     <DeviceDialog v-model="dlg" :record="dev" />
+    <el-dialog v-model="extDialog" title="XXX-System" width="420px" align-center><div style="padding: 24px 0; text-align: center; font-size: 16px">System to be integrated</div><template #footer><el-button type="primary" @click="extDialog = false">OK</el-button></template></el-dialog>
     <el-dialog v-model="noteDialog" title="Add note" width="500px"><el-input v-model="noteText" type="textarea" /><template #footer><el-button @click="noteDialog = false">Cancel</el-button><el-button type="primary" :disabled="!noteText.trim()" @click="addNote">Save</el-button></template></el-dialog>
     <el-dialog v-model="inspectDialog" title="Inspect" width="550px">
       <el-form label-width="130px"><el-form-item label="Result" required><el-select v-model="inspection.result" style="width: 100%"><el-option v-for="(label, key) in INSPECTION_RESULTS" :key="key" :label="label" :value="key" /></el-select></el-form-item>
@@ -172,7 +173,6 @@ import WasteType from '../components/WasteType.vue'
 import EntityPhotos from '../components/EntityPhotos.vue'
 import { tagsOf, servicedBy, state, idx, nameOf, updateDevice, logChange, addEntityNote, nextId, CURRENT_USER, INSPECTION_RESULTS, ISSUE_CATEGORIES, save, nextService, isOverdue, overdueText, distanceM, fmtDate, fmtTime, fmtL, fmtM, DEVICE_STATUS } from '../store/db'
 import { can } from '../store/api'
-import { TWAIN_URL } from '../brand.js'
 
 const route = useRoute(), router = useRouter()
 const tab = ref(route.query.tab || 'info')
@@ -205,7 +205,7 @@ const markers = computed(() => [
   ...(dev.value.lat != null ? [{ lat: dev.value.lat, lng: dev.value.lng, label: dev.value.ref, color: '#409eff', permanent: true }] : []),
   ...(loc.value?.lat != null ? [{ lat: loc.value.lat, lng: loc.value.lng, label: 'Location: ' + loc.value.name, color: '#e6a23c' }] : [])
 ])
-const dlg = ref(false)
+const dlg = ref(false), extDialog = ref(false)
 const DEVICE_PHOTO_KINDS = { device: 'Device photos', coords: 'Location / coordinates photos' }
 const PHOTO_LOG_FIELD = { device: 'Device photo', coords: 'Location photo' }
 function photoLog(kind, oldValue, newValue) {
