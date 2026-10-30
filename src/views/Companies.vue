@@ -19,7 +19,6 @@
         <el-table-column label="Address" prop="address" sortable="custom" min-width="200" show-overflow-tooltip />
         <el-table-column v-if="isTransportView" label="Drivers" prop="driverCount" sortable="custom" width="85" align="right"><template #default="{ row }">{{ count('drivers', row.id) }}</template></el-table-column>
         <el-table-column v-if="isTransportView" label="Vehicles" prop="vehicleCount" sortable="custom" width="90" align="right"><template #default="{ row }">{{ count('vehicles', row.id) }}</template></el-table-column>
-        <el-table-column v-if="isTransportView" label="Devices" prop="deviceCount" sortable="custom" width="85" align="right"><template #default="{ row }">{{ count('devices', row.id) }}</template></el-table-column>
         <el-table-column v-if="!isTransportView" label="Devices owned" prop="ownedCount" sortable="custom" width="120" align="right"><template #default="{ row }">{{ count('owned', row.id) }}</template></el-table-column>
         <el-table-column v-if="!isTransportView" label="Locations" prop="locationCount" sortable="custom" width="100" align="right"><template #default="{ row }">{{ count('locations', row.id) }}</template></el-table-column>
         <el-table-column label="Status" prop="status" sortable="custom" width="95"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
@@ -42,7 +41,7 @@ import Pager from '../components/Pager.vue'
 import EntityDialog from '../components/EntityDialog.vue'
 import { usePaged } from '../composables/paged'
 import { exportCsv } from '../store/csv'
-import { state, servicedBy, save, ENTITY_STATUS, COMPANY_TYPES, companyTypes } from '../store/db'
+import { state, save, ENTITY_STATUS, COMPANY_TYPES, companyTypes } from '../store/db'
 import { can } from '../store/api'
 import { companyFields, DEFAULTS, upsert } from '../store/forms'
 
@@ -53,10 +52,10 @@ const TITLES = { transport: 'Transport companies', occupier: 'Occupiers', owner:
 const q = ref(''), status = ref('')
 const counts = computed(() => {
   const m = {}
-  for (const key of ['drivers', 'vehicles', 'devices']) {
+  for (const key of ['drivers', 'vehicles']) {
     m[key] = new Map()
     for (const x of state[key]) {
-      const id = key === 'devices' ? servicedBy(x) : x.companyId
+      const id = x.companyId
       if (id) m[key].set(id, (m[key].get(id) || 0) + 1)
     }
   }
@@ -78,12 +77,12 @@ const filtered = computed(() => {
     (!k || [c.name, c.abn, c.contact].some((x) => (x || '').toLowerCase().includes(k))))
 })
 const { page, pageSize, rows, sorted, onSort, total } = usePaged(filtered, 20, {
-  driverCount: (c) => count('drivers', c.id), vehicleCount: (c) => count('vehicles', c.id), deviceCount: (c) => count('devices', c.id)
+  driverCount: (c) => count('drivers', c.id), vehicleCount: (c) => count('vehicles', c.id)
 })
 function download() {
   exportCsv('companies', sorted.value.map((c) => ({ 'Company name': c.name, Types: companyTypes(c).map((t) => COMPANY_TYPES[t]).join('; '), ABN: c.abn, Contact: c.contact,
     Phone: c.phone, Address: c.address, Drivers: count('drivers', c.id), Vehicles: count('vehicles', c.id),
-    Devices: count('devices', c.id), Status: ENTITY_STATUS[c.status] })))
+    Status: ENTITY_STATUS[c.status] })))
 }
 const dlg = ref(false), current = ref(null)
 function edit(row) { current.value = row; dlg.value = true }

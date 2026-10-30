@@ -20,7 +20,6 @@
             <el-descriptions-item label="Types">{{ companyTypes(co).map((t) => COMPANY_TYPES[t]).join(', ') }}</el-descriptions-item>
             <el-descriptions-item v-if="asTransport" label="Drivers">{{ drivers.length }} ({{ drivers.filter((d) => d.status === 'pending').length }} pending)</el-descriptions-item>
             <el-descriptions-item v-if="asTransport" label="Vehicles">{{ vehicles.length }}</el-descriptions-item>
-            <el-descriptions-item v-if="asTransport" label="Devices">{{ devices.length }} (<span class="red">{{ devices.filter(isOverdue).length }}</span> overdue)</el-descriptions-item>
             <el-descriptions-item v-if="asTransport" label="Pump-outs (14 days)">{{ pickups.length }} jobs, {{ fmtL(pickups.reduce((s, p) => s + (p.volume || 0), 0)) }}</el-descriptions-item>
             <el-descriptions-item v-if="!asTransport" label="Devices owned">{{ ownedDevices.length }} (<span class="red">{{ ownedDevices.filter(isOverdue).length }}</span> overdue)</el-descriptions-item>
             <el-descriptions-item v-if="!asTransport" label="Locations">{{ ownedLocations.length }}</el-descriptions-item>
@@ -51,9 +50,6 @@
             <el-table-column label="Status"><template #default="{ row }"><el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ ENTITY_STATUS[row.status] }}</el-tag></template></el-table-column>
           </el-table>
         </el-tab-pane>
-        <el-tab-pane v-if="asTransport" :label="`Devices (${devices.length})`" name="devices">
-          <DeviceTable :rows="devices" hide-company />
-        </el-tab-pane>
         <el-tab-pane v-if="!asTransport" :label="`Devices owned (${ownedDevices.length})`" name="owned-devices">
           <DeviceTable :rows="ownedDevices" size="default" />
         </el-tab-pane>
@@ -76,7 +72,7 @@
             <el-radio-button value="u">Unloads ({{ unloads.length }})</el-radio-button>
           </el-radio-group>
           <div class="toolbar" style="margin-bottom: 10px">
-            <el-input v-model="opFilter.q" placeholder="Search device, location, driver, vehicle" clearable :prefix-icon="'Search'" style="width: 300px" />
+            <el-input v-model="opFilter.q" placeholder="Search location, driver, vehicle" clearable :prefix-icon="'Search'" style="width: 300px" />
             <el-select v-if="statusOptions.length" v-model="opFilter.status" placeholder="Status" clearable style="width: 150px"><el-option v-for="s in statusOptions" :key="s" :label="STATUS_LABEL[s] || s" :value="s" /></el-select>
             <el-date-picker v-model="opFilter.dates" type="daterange" range-separator="to" start-placeholder="From" end-placeholder="To" style="width: 260px" />
           </div>
@@ -134,14 +130,14 @@ const ownedPickups = computed(() => {
   return state.pickups.filter((p) => ids.has(p.deviceId) && new Date(p.endAt || p.startAt).getTime() >= from)
 })
 const of = (key) => computed(() => state[key].filter((x) => x.companyId === id))
-const drivers = of('drivers'), vehicles = of('vehicles'), devices = computed(() => state.devices.filter((d) => deviceServicedBy(d) === id)), pickups = of('pickups'), transfers = of('transfers'), unloads = of('unloads')
+const drivers = of('drivers'), vehicles = of('vehicles'), pickups = of('pickups'), transfers = of('transfers'), unloads = of('unloads')
 
 const STATUS_LABEL = { ongoing: 'In progress', done: 'Done' }
 const opFilter = reactive({ q: '', status: '', dates: null })
 watch(opsTab, () => { opFilter.q = ''; opFilter.status = ''; opFilter.dates = null })
 const opDate = { p: (r) => r.endAt || r.startAt, t: (r) => r.at, u: (r) => r.at }
 const opText = {
-  p: (r) => [r.deviceId, idx.devices.value.get(r.deviceId)?.aka, nameOf('locations', r.locationId), nameOf('drivers', r.driverId), plateOf(r.vehicleId)],
+  p: (r) => [nameOf('locations', r.locationId), nameOf('drivers', r.driverId), plateOf(r.vehicleId)],
   t: (r) => [nameOf('drivers', r.driverId), plateOf(r.fromVehicleId), plateOf(r.toVehicleId)],
   u: (r) => [nameOf('drivers', r.driverId), plateOf(r.vehicleId), nameOf('facilities', r.facilityId)]
 }
